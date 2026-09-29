@@ -23,6 +23,7 @@
 <header class="nav">
   <a href="#top" class="logo" aria-label="Khuwaish Goyal — home">K<i>G</i>.</a>
   <nav aria-label="Primary">
+    <a href="#showroom">Showroom</a>
     <a href="#projects">Builds</a>
     <a href="#github">GitHub</a>
     <a href="https://www.linkedin.com/in/khuwaishgoyal" target="_blank" rel="noopener">LinkedIn</a>
@@ -33,6 +34,7 @@
 <!-- chapter rail -->
 <ol class="rail" aria-label="Story chapters">
   <li><a href="#top" data-label="Prologue"><span></span></a></li>
+  <li><a href="#showroom" data-label="Showroom"><span></span></a></li>
   <li><a href="#spark" data-label="I · The spark"><span></span></a></li>
   <li><a href="#builds" data-label="II · First builds"><span></span></a></li>
   <li><a href="#arena" data-label="III · The arena"><span></span></a></li>
@@ -63,7 +65,8 @@
     </p>
     <p class="hero-sub">I turn messy data and big ideas into apps people actually use — from fraud-spotting computer vision to farmers' tools that won on stage.</p>
     <div class="hero-cta">
-      <a class="btn primary" href="#spark">Start the story <span aria-hidden="true">↓</span></a>
+      <a class="btn primary" href="#showroom">Enter the showroom <span aria-hidden="true">↓</span></a>
+      <a class="btn" href="#spark">Read the story</a>
       <a class="btn" href="assets/Khuwaish_Goyal_Master_Resume.pdf" download>Master resume</a>
       <a class="btn" href="https://github.com/KhuwaishGoyal28" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="https://www.linkedin.com/in/khuwaishgoyal" target="_blank" rel="noopener">LinkedIn ↗</a>
@@ -102,6 +105,32 @@
     </ul>
   </div>
   <div class="scroll-hint mono" aria-hidden="true"><span></span>scroll</div>
+</section>
+
+
+<!-- ============ VIRTUAL SHOWROOM ============ -->
+<section class="showroom" id="showroom" aria-label="Virtual showroom: one room per project">
+  <div class="sr-stage">
+    <canvas id="sr-gl" aria-hidden="true"></canvas>
+    <div class="cinema" id="cinema" data-mode="reel">
+      <div class="sr-poster" id="sr-poster"><span class="mono">Now showing</span><h4></h4><a class="btn primary" target="_blank" rel="noopener">Open the live demo ↗</a></div>
+      <iframe id="sr-frame" title="Live project demo" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+      <div class="sr-reel" id="sr-reel" aria-live="polite"></div>
+      <button class="sr-interact mono" id="sr-interact" type="button">Click to interact</button>
+    </div>
+    <div class="sr-top mono"><span class="rec">● REC</span><span>Virtual showroom · scroll to walk</span><span id="hud-count">00 / 07</span></div>
+    <div class="sr-hud">
+      <p class="mono sr-tag" id="hud-tag"></p>
+      <h2 class="sr-title" id="hud-title"></h2>
+      <p class="sr-badge" id="hud-badge"></p>
+      <p class="sr-desc" id="hud-desc"></p>
+      <div class="sr-cta">
+        <a class="btn primary" id="hud-live" target="_blank" rel="noopener">Open live ↗</a>
+        <a class="btn" id="hud-src" target="_blank" rel="noopener">Source code ↗</a>
+      </div>
+    </div>
+    <ol class="sr-dots" id="sr-dots" aria-label="Rooms"></ol>
+  </div>
 </section>
 
 <!-- ============ CH 1 ============ -->
@@ -456,5 +485,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="main.js"></script>
+<script src="showroom.js"></script>
 </body>
 </html>
