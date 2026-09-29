@@ -29,43 +29,110 @@
     setTimeout(() => erase(() => type(roles[ri = 1], loop)), 2600);
   }
 
-  /* ---------- hero: constellation canvas ---------- */
-  const cv = $('#net'), ctx = cv.getContext('2d');
-  let W, H, pts = [], mouse = { x: -999, y: -999 }, heroVisible = true;
-  const size = () => {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    W = cv.clientWidth; H = cv.clientHeight;
-    cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n = Math.min(90, Math.floor(W * H / 15000));
-    pts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, r: Math.random() * 1.6 + .6 }));
-  };
-  const draw = () => {
-    if (heroVisible) {
-      ctx.clearRect(0, 0, W, H);
-      for (const p of pts) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > W) p.vx *= -1;
-        if (p.y < 0 || p.y > H) p.vy *= -1;
-        const dx = p.x - mouse.x, dy = p.y - mouse.y, d = Math.hypot(dx, dy);
-        if (d < 140) { p.x += dx / d * 1.4; p.y += dy / d * 1.4; }
-      }
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i];
-        ctx.fillStyle = 'rgba(255,180,84,.85)';
-        ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, 6.283); ctx.fill();
-        for (let j = i + 1; j < pts.length; j++) {
-          const b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y);
-          if (d < 130) { ctx.strokeStyle = `rgba(94,234,212,${(1 - d / 130) * .32})`; ctx.lineWidth = .8; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
-        }
-      }
+  /* ---------- 3D world (three.js) ---------- */
+  const mouse = { x: 0, y: 0 };
+  addEventListener('pointermove', e => { mouse.x = e.clientX / innerWidth - .5; mouse.y = e.clientY / innerHeight - .5; }, { passive: true });
+  (function initGL() {
+    if (typeof THREE === 'undefined') return;
+    const cv = $('#gl');
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); } catch (e) { return; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0c12, .017);
+    const cam = new THREE.PerspectiveCamera(55, 1, .1, 320);
+    cam.position.set(0, 0, 6);
+
+    scene.add(new THREE.AmbientLight(0xffffff, .55));
+    const key = new THREE.DirectionalLight(0xffc27a, 1.5); key.position.set(3, 4, 5); scene.add(key);
+    const rim = new THREE.PointLight(0x5eead4, 1.4, 30); rim.position.set(-4, -2, 3); scene.add(rim);
+
+    // starfield tube
+    const N = 2600, pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      pos[i * 3] = (Math.random() - .5) * 90;
+      pos[i * 3 + 1] = (Math.random() - .5) * 60;
+      pos[i * 3 + 2] = 25 - Math.random() * 160;
     }
-    requestAnimationFrame(draw);
-  };
-  size(); addEventListener('resize', size);
-  cv.parentElement.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; });
-  cv.parentElement.addEventListener('pointerleave', () => { mouse.x = mouse.y = -999; });
-  new IntersectionObserver(([e]) => heroVisible = e.isIntersecting).observe(cv);
-  if (!reduce) draw(); else { heroVisible = true; }
+    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffd9a0, size: .09, transparent: true, opacity: .85, depthWrite: false }));
+    scene.add(stars);
+
+    // gold trophy (lathe profile)
+    const gold = new THREE.MeshStandardMaterial({ color: 0xffb454, metalness: .92, roughness: .22, emissive: 0x3a1c00, side: THREE.DoubleSide });
+    const prof = [[0, 0], [.95, 0], [.95, .16], [.6, .26], [.2, .4], [.16, .5], [.16, 1.05], [.45, 1.25], [.5, 1.4], [.95, 1.75], [1.18, 2.5], [1.16, 2.9], [1.04, 2.9], [1.02, 2.5], [.82, 1.9], [.3, 1.6], [0, 1.55]]
+      .map(p => new THREE.Vector2(p[0], p[1]));
+    const trophy = new THREE.Group();
+    trophy.add(new THREE.Mesh(new THREE.LatheGeometry(prof, 48), gold));
+    [-1, 1].forEach(s => {
+      const h = new THREE.Mesh(new THREE.TorusGeometry(.5, .07, 14, 28, Math.PI), gold);
+      h.position.set(s * 1.13, 2.2, 0); h.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+      trophy.add(h);
+    });
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(.32), new THREE.MeshStandardMaterial({ color: 0x5eead4, emissive: 0x0b5c52, metalness: .6, roughness: .2 }));
+    star.position.y = 3.5; trophy.add(star);
+    trophy.position.y = -1.6;
+    const stage = new THREE.Group(); stage.add(trophy);
+
+    // orbiting award rings
+    const orbit = [];
+    for (let i = 0; i < 3; i++) {
+      const r = new THREE.Mesh(new THREE.TorusGeometry(.36, .07, 14, 32), gold);
+      r.userData = { a: i * Math.PI * 2 / 3, rad: 2.6 };
+      stage.add(r); orbit.push(r);
+    }
+    scene.add(stage);
+
+    // wireframe shapes along the scroll path
+    const geos = [() => new THREE.IcosahedronGeometry(1.2, 0), () => new THREE.TorusKnotGeometry(.9, .28, 90, 12), () => new THREE.OctahedronGeometry(1.3), () => new THREE.TorusGeometry(1.2, .08, 8, 48), () => new THREE.DodecahedronGeometry(1.1)];
+    const floaters = [];
+    for (let i = 0; i < 16; i++) {
+      const col = i % 2 ? 0x5eead4 : 0xffb454;
+      const m = new THREE.Mesh(geos[i % geos.length](), new THREE.MeshBasicMaterial({ color: col, wireframe: true, transparent: true, opacity: .5 }));
+      m.position.set((i % 2 ? 1 : -1) * (3.4 + Math.random() * 3.2), (Math.random() - .5) * 5, -17 - i * 7);
+      m.userData = { s: (Math.random() * .4 + .1) * (i % 2 ? 1 : -1) };
+      scene.add(m); floaters.push(m);
+    }
+
+    let camZ = 6, roll = 0, lastY = scrollY, running = true;
+    const layout = () => {
+      const w = innerWidth, h = innerHeight;
+      renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+      const wide = w / h > 1.15;
+      stage.position.set(wide ? 3.1 : 0, wide ? .2 : 2.7, 0);
+      stage.scale.setScalar(wide ? .8 : .45);
+    };
+    layout();
+    addEventListener('resize', () => { layout(); if (reduce) render(0); });
+    document.addEventListener('visibilitychange', () => { running = !document.hidden; });
+
+    const clock = new THREE.Clock();
+    function render(dt) {
+      const max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+      const p = Math.min(1, scrollY / max);
+      camZ += ((6 - p * 126) - camZ) * (reduce ? 1 : .06);
+      const vel = scrollY - lastY; lastY = scrollY;
+      roll += ((-vel * .0009) - roll) * .08;
+      cam.position.x += (mouse.x * 1.6 - cam.position.x) * .05;
+      cam.position.y += (-mouse.y * 1.0 - cam.position.y) * .05;
+      cam.position.z = camZ;
+      cam.rotation.z = roll;
+      cam.lookAt(cam.position.x * .4, cam.position.y * .4, camZ - 12);
+      const t = clock.elapsedTime;
+      trophy.rotation.y += dt * .7;
+      star.rotation.y -= dt * 1.4; star.position.y = 3.5 + Math.sin(t * 2) * .12;
+      orbit.forEach(r => {
+        const u = r.userData; u.a += dt * .8;
+        r.position.set(Math.cos(u.a) * u.rad, 1.6 + Math.sin(t * 1.6 + u.a) * .35, Math.sin(u.a) * u.rad);
+        r.rotation.x = t + u.a; r.rotation.y = t * .7;
+      });
+      floaters.forEach(f => { f.rotation.x += dt * f.userData.s; f.rotation.y += dt * f.userData.s * 1.3; });
+      stars.rotation.z = t * .01;
+      renderer.render(scene, cam);
+    }
+    if (reduce) { render(0); addEventListener('scroll', () => render(0), { passive: true }); return; }
+    (function loop() { requestAnimationFrame(loop); if (running) render(Math.min(clock.getDelta(), .05)); })();
+  })();
 
   /* ---------- cursor glow ---------- */
   const glow = $('.glow');
@@ -173,6 +240,7 @@
 
   /* ---------- 3D tilt on cards ---------- */
   if (!reduce && matchMedia('(hover:hover)').matches) {
+    $$('.trophy, .job:not(.end), .live-grid a, .panel').forEach(e => e.classList.add('tilt'));
     $$('.tilt').forEach(c => {
       c.addEventListener('pointermove', e => {
         const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5;

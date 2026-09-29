@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<canvas id="gl" aria-hidden="true"></canvas>
 <div class="progress" aria-hidden="true"></div>
 <div class="glow" aria-hidden="true"></div>
 
@@ -46,10 +47,9 @@
 
 <!-- ============ HERO ============ -->
 <section class="hero" id="top">
-  <canvas id="net" aria-hidden="true"></canvas>
-  <div class="portrait" aria-hidden="false">
+    <div class="portrait" aria-hidden="false">
     <span class="mono-kg">KG</span>
-    <img src="assets/photo.jpg" alt="Portrait of Khuwaish Goyal" onerror="this.remove()">
+    <img src="assets/photo.jpg" alt="Portrait of Khuwaish Goyal" onload="this.parentElement.classList.add('has')" onerror="this.remove()">
   </div>
   <div class="wrap hero-in">
     <p class="prompt mono"><span class="tick">›</span> whoami<span class="caret"></span></p>
@@ -67,6 +67,29 @@
       <a class="btn" href="assets/Khuwaish_Goyal_Master_Resume.pdf" download>Master resume</a>
       <a class="btn" href="https://github.com/KhuwaishGoyal28" target="_blank" rel="noopener">GitHub ↗</a>
       <a class="btn" href="https://www.linkedin.com/in/khuwaishgoyal" target="_blank" rel="noopener">LinkedIn ↗</a>
+    </div>
+    <div class="cover-panels">
+      <div class="panel">
+        <h3 class="mono">🏆 Awards won</h3>
+        <ul class="pills">
+          <li class="gold"><b>1st</b> IEEE Rapid Innovation Challenge</li>
+          <li class="gold"><b>1st</b> IEEE Sustainable Solutions for Humanity</li>
+          <li class="gold"><b>1st</b> Code Relay · Jain University</li>
+          <li><b>Top</b> Salesforce Study Jam</li>
+          <li><b>8th</b> Honeywell Hackathon</li>
+          <li><b>Final</b> Rakuten Hackathon</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 class="mono">● Live projects</h3>
+        <ul class="pills links">
+          <li><a href="https://ai-exam-evaluator-nine.vercel.app" target="_blank" rel="noopener">EvalPro ↗</a></li>
+          <li><a href="https://ats-resume-matcher-nu.vercel.app" target="_blank" rel="noopener">ATS Resume Matcher ↗</a></li>
+          <li><a href="https://to-do-list-pied-six-19.vercel.app" target="_blank" rel="noopener">To-Do List ↗</a></li>
+          <li><a href="https://50th-anniversary-navy.vercel.app" target="_blank" rel="noopener">50th Anniversary ↗</a></li>
+          <li><a href="https://octanet-github-io.vercel.app" target="_blank" rel="noopener">Landing Page ↗</a></li>
+        </ul>
+      </div>
     </div>
     <ul class="hero-facts mono">
       <li><b data-count="3">0</b> first-place wins</li>
@@ -408,6 +431,7 @@
 
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="main.js"></script>
