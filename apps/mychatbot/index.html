@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MyChatbot</title>
+<meta name="description" content="Web version of Khuwaish Goyal's MyChatbot: chat UI with text-to-speech and the GIF effect generator, running with a clearly labelled demo reply mode.">
+<link rel="stylesheet" href="base.css">
+<style>
+#messages{height:46vh;min-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px}
+.msg{max-width:82%;padding:10px 13px;border-radius:14px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word}
+.msg.bot{background:var(--panel2);border:1px solid var(--line);align-self:flex-start}
+.msg.user{background:#0ea5e9;color:#04121c;align-self:flex-end}
+.msg .tag{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--warn);margin-bottom:4px}
+.msg button{min-height:32px;padding:5px 10px;font-size:.8rem;margin-top:8px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.panel{margin-top:14px;display:none}.panel.on{display:block}
+#gifOut{max-width:100%;border-radius:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:860px">
+  <header class="top"><div class="logo">AI</div><div><h1>MyChatbot</h1><p>Chat UI with text-to-speech and a GIF generator.</p></div></header>
+  <div class="note" style="margin-bottom:16px"><b>Demo reply mode.</b> The original app sends messages to Google Gemini (<code>gemini-1.5-flash</code>) from a Flask server. This static web version has no server and no API key, so bot replies are <b>pre-written demo messages, not AI output</b>. To get real Gemini replies, run the Python app with your own key (see the README).</div>
+  <section class="card">
+    <div id="messages"></div>
+    <div class="row" style="margin-top:12px">
+      <input id="text" placeholder="Type your message..." style="flex:1;min-width:180px" maxlength="500">
+      <button id="send">Send</button>
+    </div>
+    <div class="tools" style="margin-top:10px">
+      <button class="ghost" id="openImg">Image</button>
+      <button class="ghost" id="openGif">GIF</button>
+    </div>
+    <div class="panel" id="imgPanel">
+      <h3>AI image generator</h3>
+      <p class="small muted">The original generates images with Stable Diffusion v1.5 (<code>diffusers</code>) on your own GPU or CPU. A multi-gigabyte diffusion model can't run on this static page, so image generation is only available in the Python app.</p>
+    </div>
+    <div class="panel" id="gifPanel">
+      <h3>GIF generator</h3>
+      <p class="small muted" style="margin-top:0">The original makes a Stable Diffusion image, then turns it into an 8-frame zoom-and-rotate GIF. Here you provide the image yourself; the GIF effect (<code>make_gif</code>: 8 frames, rotate 3° per frame, scale +7%, 200 ms) runs in your browser.</p>
+      <div class="grid g2" style="gap:10px">
+        <div><label for="gifFile">Image</label><input type="file" id="gifFile" accept="image/*"></div>
+        <div><label for="gifSize">Size</label><select id="gifSize"><option value="256">256x256</option><option value="512" selected>512x512</option><option value="768">768x768</option></select></div>
+      </div>
+      <button id="gifBtn" style="margin-top:10px">Generate GIF</button>
+      <img id="gifOut" alt="" hidden>
+      <p><a id="gifDl" class="btn ghost" hidden download="mychatbot.gif">Download GIF</a></p>
+    </div>
+  </section>
+  <footer class="foot"><span>Web version of MyChatbot — source: <a href="https://github.com/KhuwaishGoyal28/MyChatbot">github.com/KhuwaishGoyal28/MyChatbot</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script type="module">
+import {GIFEncoder,quantize,applyPalette} from "https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js";
+const $=id=>document.getElementById(id);
+const clean=t=>t.replace(/\*/g,"").replace(/\s+/g," ").trim(); // clean_text()
+function add(role,text,demo){const d=document.createElement("div");d.className="msg "+role;
+  if(demo){const s=document.createElement("span");s.className="tag";s.textContent="Demo reply · not AI";d.appendChild(s)}
+  d.appendChild(document.createTextNode(text));
+  if(role==="bot"&&"speechSynthesis" in window){const b=document.createElement("button");b.className="ghost";b.textContent="Listen";
+    b.onclick=()=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(clean(text).slice(0,5000));speechSynthesis.speak(u)};d.appendChild(document.createElement("br"));d.appendChild(b)}
+  $("messages").appendChild(d);$("messages").scrollTop=1e9}
+function demoReply(t){const s=t.toLowerCase();
+  if(/^(hi|hello|hey)\b/.test(s))return "Hello! This is MyChatbot running in demo reply mode. In the full app, your message would be answered by Google Gemini.";
+  if(/what can you do|help|feature/.test(s))return "The full MyChatbot can: chat with Gemini, read replies aloud (text-to-speech), generate images with Stable Diffusion, and turn them into animated GIFs. On this page, Listen and the GIF effect work for real; chat replies are demo text.";
+  if(/who (made|built|created)/.test(s))return "MyChatbot was built by Khuwaish Goyal with Flask, Google Gemini, pyttsx3 and Stable Diffusion.";
+  if(/image|picture|draw/.test(s))return "Image generation needs the Stable Diffusion model, which runs in the Python app. Try the GIF button to animate an image of your own.";
+  return "Demo mode: I can't generate a real answer to \""+t.slice(0,80)+"\" here, because this page has no AI backend. Run the Python app with your own Gemini API key for real replies."}
+function send(){const t=$("text").value.trim();if(!t)return;add("user",t);$("text").value="";$("send").disabled=true;
+  setTimeout(()=>{add("bot",demoReply(t),true);$("send").disabled=false},450)}
+$("send").onclick=send;$("text").onkeydown=e=>{if(e.key==="Enter")send()};
+$("openImg").onclick=()=>$("imgPanel").classList.toggle("on");$("openGif").onclick=()=>$("gifPanel").classList.toggle("on");
+add("bot","Hi! I'm MyChatbot. This web version runs in demo reply mode, so my answers are pre-written. Try the Listen button or the GIF generator.",true);
+$("gifBtn").onclick=async()=>{const f=$("gifFile").files[0];if(!f){alert("Choose an image first.");return}
+  $("gifBtn").disabled=true;$("gifBtn").textContent="Generating...";
+  try{const img=await createImageBitmap(f);const N=+$("gifSize").value;
+    const base=document.createElement("canvas");base.width=base.height=N;const bx=base.getContext("2d");
+    const sc=Math.max(N/img.width,N/img.height);bx.drawImage(img,(N-img.width*sc)/2,(N-img.height*sc)/2,img.width*sc,img.height*sc); // resize(size)
+    const c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d");const gif=GIFEncoder();
+    for(let i=0;i<8;i++){const scale=1+i*0.07;x.fillStyle="#000";x.fillRect(0,0,N,N);
+      // PIL: rotate(i*3) about centre (black corners), resize by scale, crop top-left N x N
+      x.save();x.scale(scale,scale);x.translate(N/2,N/2);x.rotate(-i*3*Math.PI/180);x.translate(-N/2,-N/2);x.drawImage(base,0,0);x.restore();
+      const {data}=x.getImageData(0,0,N,N);const pal=quantize(data,256);gif.writeFrame(applyPalette(data,pal),N,N,{palette:pal,delay:200})}
+    gif.finish();const url=URL.createObjectURL(new Blob([gif.bytes()],{type:"image/gif"}));
+    $("gifOut").src=url;$("gifOut").hidden=false;$("gifDl").href=url;$("gifDl").hidden=false;
+  }catch(e){alert("Could not create GIF: "+e.message)}finally{$("gifBtn").disabled=false;$("gifBtn").textContent="Generate GIF"}};
+</script>
+</body>
+</html>

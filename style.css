@@ -245,7 +245,7 @@ a.card:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 60px -30px rgba
 .apps-web{margin-top:56px}.apps-note{color:var(--mute);max-width:720px;margin-bottom:18px;font-size:.95rem}
 
 /* ============ VIRTUAL SHOWROOM ============ */
-.showroom{position:relative;height:calc(100svh * 9);z-index:2;background:#07080d;--accent:#ffb454}
+.showroom{position:relative;height:calc(100svh * 12);z-index:2;background:#07080d;--accent:#ffb454}
 .sr-stage{position:sticky;top:0;height:100svh;overflow:hidden}
 #sr-gl{position:absolute;inset:0;width:100%;height:100%;display:block}
 .sr-stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.65));}

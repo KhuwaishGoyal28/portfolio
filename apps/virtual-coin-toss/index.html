@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Virtual Coin Toss</title>
+<meta name="description" content="Flip a virtual coin with animation and running heads/tails statistics. Web version of Khuwaish Goyal's PyQt6 Virtual Coin Toss.">
+<link rel="stylesheet" href="base.css">
+<style>
+.stage{perspective:900px;display:grid;place-items:center;padding:26px 0 10px}
+.coin{width:170px;height:170px;position:relative;transform-style:preserve-3d;transition:transform 2s cubic-bezier(.2,.7,.2,1)}
+.face{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;backface-visibility:hidden;font-weight:800;font-size:1.25rem;letter-spacing:.12em;color:#3a2a00;
+ background:radial-gradient(circle at 35% 30%,#ffe9a3,#e3b440 55%,#a87b12);box-shadow:inset 0 0 0 8px rgba(0,0,0,.12),inset 0 0 0 11px rgba(255,255,255,.25),0 18px 40px rgba(0,0,0,.45)}
+.face.tails{transform:rotateY(180deg);background:radial-gradient(circle at 35% 30%,#f1f3f7,#b8bfcc 55%,#737c8c);color:#1f2530}
+.result{text-align:center;font-size:1.05rem;min-height:1.6em}
+.bar{height:10px;border-radius:99px;background:var(--panel2);overflow:hidden;display:flex;border:1px solid var(--line)}
+.bar i{display:block;height:100%}
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:560px">
+  <header class="top"><div class="logo">¢</div><div><h1>Virtual Coin Toss</h1><p>Professional Edition, now in the browser.</p></div></header>
+  <section class="card">
+    <div class="stage"><div class="coin" id="coin"><div class="face heads">HEADS</div><div class="face tails">TAILS</div></div></div>
+    <p class="result" id="result">Heads: 0 | Tails: 0</p>
+    <div class="bar" aria-hidden="true"><i id="bh" style="background:#e3b440;width:50%"></i><i id="bt" style="background:#b8bfcc;width:50%"></i></div>
+    <div class="row" style="margin-top:18px">
+      <button id="flip" style="flex:1;background:#38a169">Flip Coin</button>
+      <button id="reset" class="danger" style="flex:1;background:#e2552f">Reset</button>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px">
+      <div class="stat"><b id="nh">0</b><span>Heads</span></div>
+      <div class="stat"><b id="nt">0</b><span>Tails</span></div>
+      <div class="stat"><b id="nf">0</b><span>Flips</span></div>
+    </div>
+    <p class="small muted" style="margin:14px 0 0">As in the original: each flip plays a 2-second animation, then picks Heads or Tails uniformly at random and updates the counts and percentages.</p>
+  </section>
+  <footer class="foot"><span>Web version of Virtual Coin Toss — source: <a href="https://github.com/KhuwaishGoyal28/Virtual-Coin-Toss">github.com/KhuwaishGoyal28/Virtual-Coin-Toss</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let heads=0,tails=0,rot=0,busy=false;
+function randomChoice(){const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%2===0?"Heads":"Tails"}
+function stats(){
+  const t=heads+tails,hp=t?heads/t*100:0,tp=t?tails/t*100:0;
+  $("nh").textContent=heads;$("nt").textContent=tails;$("nf").textContent=t;
+  $("bh").style.width=(t?hp:50)+"%";$("bt").style.width=(t?tp:50)+"%";
+  return t?`Heads: ${heads} (${hp.toFixed(1)}%) | Tails: ${tails} (${tp.toFixed(1)}%)`:"Heads: 0 | Tails: 0";
+}
+$("flip").onclick=()=>{
+  if(busy)return;busy=true;$("flip").disabled=true;
+  const result=randomChoice();
+  $("result").textContent="Flipping...";
+  // spin several full turns, landing on the chosen face
+  const base=Math.ceil(rot/360)*360+360*5;rot=base+(result==="Tails"?180:0);
+  $("coin").style.transform=`rotateY(${rot}deg)`;
+  setTimeout(()=>{ // complete_flip after 2s
+    result==="Heads"?heads++:tails++;
+    $("result").textContent=stats();busy=false;$("flip").disabled=false;
+  },2000);
+};
+$("reset").onclick=()=>{if(busy)return;heads=tails=0;rot=0;$("coin").style.transition="none";$("coin").style.transform="rotateY(0)";requestAnimationFrame(()=>$("coin").style.transition="");$("result").textContent=stats()};
+</script>
+</body>
+</html>

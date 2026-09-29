@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Expense Tracker</title>
+<meta name="description" content="Add expenses, view records, and get monthly and category summaries in rupees. Web version of Khuwaish Goyal's ex-penture-calculator.">
+<link rel="stylesheet" href="base.css">
+<style>
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
+.tabs button{background:var(--panel2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hbar{display:grid;grid-template-columns:120px 1fr 90px;gap:10px;align-items:center;margin:8px 0;font-size:.9rem}
+.hbar .t{height:12px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.hbar .t i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.hbar b{text-align:right;font-variant-numeric:tabular-nums}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.x{background:none;color:var(--muted);min-height:auto;padding:4px 8px}
+@media(max-width:520px){.hbar{grid-template-columns:90px 1fr 80px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">₹</div><div><h1>Expense Tracker</h1><p>Add expenses and see monthly and category summaries. Your data stays in this browser.</p></div></header>
+
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+    <div class="stat"><b id="kTotal">₹0</b><span>Total spent</span></div>
+    <div class="stat"><b id="kCount">0</b><span>Entries</span></div>
+    <div class="stat"><b id="kTop">–</b><span>Top category</span></div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="on" data-t="add">1. Add Expense</button>
+    <button data-t="view">2. View Expenses</button>
+    <button data-t="month">3. Monthly Summary</button>
+    <button data-t="cat">4. Category Summary</button>
+  </div>
+
+  <section class="card" data-p="add">
+    <h2>Add expense</h2>
+    <form id="f" class="grid g2" style="gap:0 16px">
+      <div><label for="amt">Amount spent (₹)</label><input id="amt" type="number" min="0" step="0.01" inputmode="decimal" required></div>
+      <div><label for="cat">Category</label><select id="cat"></select></div>
+      <div><label for="desc">Description</label><input id="desc" maxlength="120" placeholder="e.g. Lunch at a restaurant"></div>
+      <div><label for="date">Date</label><input id="date" type="date"></div>
+      <div style="grid-column:1/-1;margin-top:14px" class="row"><button type="submit">Add expense</button><span id="msg" class="small"></span></div>
+    </form>
+  </section>
+
+  <section class="card" data-p="view" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">All expenses</h2>
+      <div class="row"><button class="ghost" id="exp" type="button">Export CSV</button><label class="btn ghost" style="margin:0;text-transform:none;letter-spacing:0;font-size:.92rem;color:var(--text)">Import CSV<input type="file" id="imp" accept=".csv" hidden></label><button class="ghost" id="resetD" type="button">Reset to sample data</button></div></div>
+    <div class="scroll"><table><thead><tr><th>Date</th><th style="text-align:right">Amount</th><th>Category</th><th>Description</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+
+  <section class="card" data-p="month" hidden><h2>Total expense by month</h2><div id="months"></div></section>
+  <section class="card" data-p="cat" hidden><h2>Total expense by category</h2><div id="cats"></div></section>
+
+  <footer class="foot"><span>Web version of ex-penture-calculator — source: <a href="https://github.com/KhuwaishGoyal28/ex-penture-calculator">github.com/KhuwaishGoyal28/ex-penture-calculator</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script>
+const CATEGORIES=["Food","Transportation","Entertainment","Bills","Shopping","Others"];
+const SAMPLE=[["2024-03-01",500,"Food","Lunch at a restaurant"],["2024-03-02",200,"Transportation","Bus fare"],["2024-03-03",1500,"Shopping","New shoes"],["2024-03-04",800,"Bills","Electricity bill"],["2024-03-05",300,"Entertainment","Movie ticket"],["2024-03-06",600,"Food","Grocery shopping"],["2024-03-07",250,"Transportation","Taxi ride"],["2024-03-08",1200,"Shopping","Clothing purchase"],["2024-03-09",500,"Bills","Internet bill"],["2024-03-10",450,"Entertainment","Concert ticket"],["2024-03-11",700,"Food","Dinner at a cafe"],["2024-03-12",180,"Transportation","Subway ticket"],["2024-03-13",1600,"Shopping","Smartphone accessories"],["2024-03-14",900,"Bills","Water bill"],["2024-03-15",350,"Entertainment","Amusement park"]];
+const KEY="expenses.csv";const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const inr=n=>"₹"+n.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(Array.isArray(v))return v}catch(e){}return SAMPLE.map(r=>[...r])}
+let data=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+$("cat").innerHTML=CATEGORIES.map(c=>`<option>${c}</option>`).join("");
+$("date").value=new Date().toISOString().slice(0,10);
+function monthly(){const m={};data.forEach(r=>{const k=r[0].slice(0,7);m[k]=(m[k]||0)+ +r[1]});return m}
+function bycat(){const m={};CATEGORIES.forEach(c=>m[c]=0);data.forEach(r=>{m[r[2]]=(m[r[2]]||0)+ +r[1]});return m}
+function bars(obj){const e=Object.entries(obj),mx=Math.max(1,...e.map(x=>x[1]));return e.map(([k,v])=>`<div class="hbar"><span>${esc(k)}</span><div class="t"><i style="width:${v/mx*100}%"></i></div><b>${inr(v)}</b></div>`).join("")||'<p class="muted">No expense records found.</p>'}
+function render(){
+  const total=data.reduce((s,r)=>s+ +r[1],0),c=bycat(),top=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
+  $("kTotal").textContent=inr(total);$("kCount").textContent=data.length;$("kTop").textContent=top&&top[1]?top[0]:"–";
+  $("rows").innerHTML=data.map((r,i)=>`<tr><td>${esc(r[0])}</td><td class="num">${inr(+r[1])}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td><button class="x" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join("")||'<tr><td colspan="5" class="muted">No expense records found.</td></tr>';
+  const ms=monthly();$("months").innerHTML=bars(Object.fromEntries(Object.keys(ms).sort().map(k=>[k,ms[k]])));
+  $("cats").innerHTML=bars(c);
+}
+$("rows").onclick=e=>{const i=e.target.dataset.i;if(i!==undefined){data.splice(+i,1);save();render()}};
+$("f").onsubmit=e=>{e.preventDefault();const a=parseFloat($("amt").value);
+  if(!(a>=0)){$("msg").textContent="Invalid input! Please try again.";$("msg").style.color="var(--danger)";return}
+  data.push([$("date").value||new Date().toISOString().slice(0,10),a,$("cat").value,$("desc").value.trim()]);save();render();
+  $("msg").textContent="Expense added successfully!";$("msg").style.color="var(--accent2)";$("amt").value="";$("desc").value=""};
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("[data-p]").forEach(p=>p.hidden=p.dataset.p!==b.dataset.t)});
+const csvCell=v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v;
+$("exp").onclick=()=>{const csv=[["Date","Amount","Category","Description"],...data].map(r=>r.map(csvCell).join(",")).join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="expenses.csv";a.click()};
+function parseCSV(t){const out=[];let row=[],cur="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch=='"'&&t[i+1]=='"'){cur+='"';i++}else if(ch=='"')q=false;else cur+=ch}else if(ch=='"')q=true;else if(ch==","){row.push(cur);cur=""}else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&t[i+1]=="\n")i++;row.push(cur);out.push(row);row=[];cur=""}else cur+=ch}if(cur||row.length){row.push(cur);out.push(row)}return out}
+$("imp").onchange=async e=>{const f=e.target.files[0];if(!f)return;const rows=parseCSV(await f.text()).slice(1).filter(r=>r.length>=4&&!isNaN(parseFloat(r[1])));data=rows.map(r=>[r[0],parseFloat(r[1]),r[2],r[3]]);save();render();e.target.value=""};
+$("resetD").onclick=()=>{data=SAMPLE.map(r=>[...r]);save();render()};
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Username Generator</title>
+<meta name="description" content="Generate usernames from dictionary words, rate them, and let a small model learn your taste. Web version of Khuwaish Goyal's username generator notebook.">
+<link rel="stylesheet" href="base.css">
+<style>
+.uname{font-size:clamp(1.5rem,6vw,2.3rem);font-weight:800;text-align:center;padding:22px 12px;border-radius:12px;word-break:break-all;
+ background:linear-gradient(90deg,#ff5722,#2196f3,#4caf50,#ffc107);background-size:300% 100%;animation:shine 4s linear infinite alternate;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.35)}
+@keyframes shine{to{background-position:100% 0}}
+.stars{display:flex;gap:6px}
+.stars button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);min-width:44px;font-size:1.1rem}
+.stars button.on{background:#ffc107;color:#1b1400;border-color:#ffc107}
+.chk{display:flex;align-items:center;gap:10px;margin:10px 0;font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--text)}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:760px">
+  <header class="top"><div class="logo">@</div><div><h1>AI Username Generator</h1><p>Adjective + noun usernames from the NLTK word list, with a model that learns from your ratings.</p></div></header>
+  <div class="grid g2">
+    <section class="card">
+      <h2>Options</h2>
+      <label for="n">Letters</label><input id="n" type="number" min="1" max="16" value="5">
+      <label class="chk"><input type="checkbox" id="num" checked> Include numbers</label>
+      <label class="chk"><input type="checkbox" id="sp" checked> Include special characters</label>
+      <button id="gen" style="width:100%;margin-top:8px">Generate username</button>
+    </section>
+    <section class="card">
+      <div class="uname" id="u">press generate</div>
+      <p class="small" style="text-align:center;margin:12px 0" id="pq">Predicted quality: –</p>
+      <label>Rate (1-5)</label>
+      <div class="row" style="justify-content:space-between"><div class="stars" id="stars"></div><button id="save" style="background:#38a169" disabled>Save rating</button></div>
+      <p class="small" id="ok" style="color:var(--accent2);min-height:1.2em"></p>
+    </section>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Rated usernames (<span id="cnt">0</span>)</h2><button class="ghost" id="dl">Download username_ratings.csv</button></div>
+    <div class="scroll" style="margin-top:10px"><table><thead><tr><th>Username</th><th>Adjective</th><th>Noun</th><th>Number</th><th>Special</th><th>Rating</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="small muted" style="margin:12px 0 0">How the prediction works: as in the original notebook, fewer than 5 ratings gives a random score between 3 and 5. After more than 5 ratings the model is retrained. The notebook used scikit-learn's <code>RandomForestRegressor</code> on hashed words; this browser port uses a small k-nearest-neighbour regressor on simple features (length, word lengths, number, special character) instead. Word list: a 10,000-word sample of the NLTK <code>words</code> corpus.</p>
+  </section>
+  <footer class="foot"><span>Web version of AI Username Generator — source: <a href="https://github.com/KhuwaishGoyal28/username_genrator">github.com/KhuwaishGoyal28/username_genrator</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let W={adjectives:["Swift"],nouns:["falcon"]};fetch("words.json").then(r=>r.json()).then(j=>W=j).catch(()=>{});
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+let data=[];try{data=JSON.parse(localStorage.getItem("username_ratings"))||[]}catch(e){}
+let cur=null,rating=3,trained=[];
+function generate(n,incNum,incSp){const adjective=pick(W.adjectives),noun=pick(W.nouns);const combined=(adjective+noun).slice(0,n);
+  const number=incNum?String(10+Math.floor(Math.random()*90)):"";const special=incSp?pick("!@#$%^&*"):"";return{adjective,noun,number,special,username:combined+number+special}}
+const feats=d=>[d.username.length/10,d.adjective.length/8,d.noun.length/8,d.number?1:0,d.special?1:0];
+function train(){if(data.length>5)trained=data.map(d=>({x:feats(d),y:d.rating}))}
+function predict(d){if(data.length<5||!trained.length)return 3+Math.random()*2;
+  const x=feats(d);const nb=trained.map(t=>({y:t.y,dist:Math.hypot(...t.x.map((v,i)=>v-x[i]))})).sort((a,b)=>a.dist-b.dist).slice(0,Math.min(5,trained.length));
+  const w=nb.map(o=>1/(o.dist+.05));return nb.reduce((s,o,i)=>s+o.y*w[i],0)/w.reduce((a,b)=>a+b,0)}
+$("stars").innerHTML=[1,2,3,4,5].map(i=>`<button data-r="${i}" aria-label="${i} stars">${i}</button>`).join("");
+function paintStars(){document.querySelectorAll("#stars button").forEach(b=>b.classList.toggle("on",+b.dataset.r<=rating))}
+$("stars").onclick=e=>{if(e.target.dataset.r){rating=+e.target.dataset.r;paintStars()}};paintStars();
+$("gen").onclick=()=>{const n=Math.max(1,parseInt($("n").value)||5);cur=generate(n,$("num").checked,$("sp").checked);
+  $("u").textContent=cur.username;$("pq").textContent="Predicted quality: "+predict(cur).toFixed(2)+" ★";$("save").disabled=false;$("ok").textContent=""};
+function render(){$("cnt").textContent=data.length;$("rows").innerHTML=data.slice().reverse().map(d=>`<tr><td><b>${esc(d.username)}</b></td><td>${esc(d.adjective)}</td><td>${esc(d.noun)}</td><td>${esc(d.number)}</td><td>${esc(d.special)}</td><td>${"★".repeat(d.rating)}</td></tr>`).join("")||'<tr><td colspan="6" class="muted">No ratings yet.</td></tr>'}
+$("save").onclick=()=>{if(!cur)return;data.push({...cur,rating});try{localStorage.setItem("username_ratings",JSON.stringify(data))}catch(e){}
+  train();render();$("ok").textContent="Rating saved and AI model updated!";$("save").disabled=true};
+$("dl").onclick=()=>{const rows=[["Adjective","Noun","Number","SpecialChar","Rating","Username"],...data.map(d=>[d.adjective,d.noun,d.number,d.special,d.rating,d.username])];
+  const csv=rows.map(r=>r.map(v=>/[",\n]/.test(v)?'"'+String(v).replace(/"/g,'""')+'"':v).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="username_ratings.csv";a.click();$("ok").textContent="Usernames saved to 'username_ratings.csv'!"};
+train();render();
+</script>
+</body>
+</html>

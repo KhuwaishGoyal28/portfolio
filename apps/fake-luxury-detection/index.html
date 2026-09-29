@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fake Luxury Detection</title>
+<meta name="description" content="The trained MobileNetV2 fake-vs-real luxury product classifier from Khuwaish Goyal's project, running in the browser with TensorFlow.js.">
+<link rel="stylesheet" href="base.css">
+<style>
+.drop{border:1.5px dashed var(--line);border-radius:12px;min-height:220px;display:grid;place-items:center;text-align:center;cursor:pointer;background:var(--panel2);overflow:hidden;position:relative;text-transform:none;letter-spacing:0;font-size:.95rem;color:var(--text);margin:0}
+.drop img,.drop video{max-width:100%;max-height:320px;display:block}
+.verdict{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
+.gauge{height:14px;border-radius:99px;background:linear-gradient(90deg,var(--danger),var(--warn),var(--accent2));position:relative;margin:12px 0 6px}
+.gauge i{position:absolute;top:-5px;width:4px;height:24px;background:#fff;border-radius:2px;transform:translateX(-2px);transition:left .25s}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem}
+.flow span{padding:6px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">✓</div><div><h1>Fake Luxury Detection</h1><p>A MobileNetV2 CNN that classifies a product photo as Real or Fake. The trained model runs in your browser.</p></div></header>
+  <div class="note" style="margin-bottom:16px"><b>Prototype model, small data.</b> It was trained on only 85 images (51 fake, 34 real), and the project's validation folder contains the same images as training, so its accuracy on new products is unknown. Treat results as a demo of the pipeline, not proof that a product is authentic.</div>
+
+  <div class="grid g2">
+    <section class="card">
+      <h2>Product photo</h2>
+      <label class="drop" id="drop" for="file"><input type="file" id="file" accept="image/*" hidden><div id="ph"><b>Choose a photo</b><br><span class="muted small">or drag it here</span></div><img id="preview" alt="" hidden><video id="cam" autoplay playsinline muted hidden></video></label>
+      <div class="row" style="margin-top:10px"><button class="ghost" id="camBtn">Use camera</button><button class="ghost" id="snap" hidden>Scan</button></div>
+      <label>Try a sample from the training set</label><div class="thumbs" id="thumbs"></div>
+      <div class="grid g2" style="gap:0 12px">
+        <div><label for="pname">Product name</label><input id="pname" value="Gucci Bag"></div>
+        <div><label for="brand">Brand</label><input id="brand" value="Gucci"></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>CNN prediction</h2>
+      <p class="small muted" id="status" style="margin-top:0">Loading model (9.7 MB)...</p>
+      <div class="verdict" id="verdict">–</div>
+      <div class="gauge"><i id="needle" style="left:50%"></i></div>
+      <div class="row small muted" style="justify-content:space-between"><span>0 · Fake</span><span>threshold 0.5</span><span>1 · Real</span></div>
+      <p>Sigmoid output: <b id="prob">–</b></p>
+      <h3>Gemini verification</h3>
+      <p class="small muted" style="margin:0">The original also asks Google Gemini whether "<span id="gq">Gucci Bag</span>" is genuine. That needs an API key on a server, so it is <b>not available in this web demo</b>. Only the CNN result above is real model output.</p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <h2>How it works</h2>
+    <div class="flow"><span>Photo</span>→<span>Resize 224×224, ÷255</span>→<span>MobileNetV2 (ImageNet, frozen)</span>→<span>GlobalAveragePooling</span>→<span>Dense 128 ReLU</span>→<span>Dropout 0.3</span>→<span>Dense 1 Sigmoid</span>→<span>&gt; 0.5 = Real</span></div>
+    <p class="small" style="margin-top:12px">The Keras model <code>luxury_brand_detector.h5</code> from the repository was exported layer by layer (158 layers, 2.4M parameters). This page rebuilds the same network with TensorFlow.js ops. Checked against Keras on sample images:</p>
+    <div class="scroll"><table><thead><tr><th>Sample</th><th>Folder</th><th>Keras (Python)</th><th>This page</th></tr></thead><tbody id="val"><tr><td colspan="4" class="muted">Running...</td></tr></tbody></table></div>
+    <p class="small muted" style="margin:10px 0 0">Small differences come from JPEG decoding and resizing in the browser versus PIL.</p>
+  </section>
+
+  <footer class="foot"><span>Web version of Fake Luxury Detection — source: <a href="https://github.com/KhuwaishGoyal28/Fake_Luxury_Detection">github.com/KhuwaishGoyal28/Fake_Luxury_Detection</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let G,W,ready=false;
+function wt(l,i){const s=l.w[i];const n=s.shape.reduce((a,b)=>a*b,1);return tf.tensor(W.subarray(s.offset,s.offset+n),s.shape)}
+let T={};
+function build(){ // pre-create weight tensors
+  for(const l of G.layers)l.t=l.w.map((_,i)=>wt(l,i));
+}
+function run(x){return tf.tidy(()=>{const out={};let last;
+  for(const l of G.layers){const a=l.in.map(n=>out[n]);let y;
+    switch(l.type){
+      case "InputLayer":y=x;break;
+      case "Conv2D":y=tf.conv2d(a[0],l.t[0],l.strides,l.padding);if(l.t[1])y=y.add(l.t[1]);break;
+      case "DepthwiseConv2D":y=tf.depthwiseConv2d(a[0],l.t[0],l.strides,l.padding);if(l.t[1])y=y.add(l.t[1]);break;
+      case "BatchNormalization":y=tf.batchNorm(a[0],l.t[2],l.t[3],l.t[1],l.t[0],l.epsilon);break;
+      case "ReLU":y=l.max_value!=null?tf.clipByValue(a[0],0,l.max_value):tf.relu(a[0]);break;
+      case "ZeroPadding2D":y=tf.pad(a[0],[[0,0],l.padding[0],l.padding[1],[0,0]]);break;
+      case "Add":y=a.reduce((p,c)=>p.add(c));break;
+      case "GlobalAveragePooling2D":y=a[0].mean([1,2]);break;
+      case "Dense":y=a[0].matMul(l.t[0]).add(l.t[1]);if(l.activation==="relu")y=tf.relu(y);else if(l.activation==="sigmoid")y=tf.sigmoid(y);break;
+      case "Dropout":y=a[0];break;
+      default:throw new Error("Unsupported layer "+l.type)}
+    out[l.name]=y;last=y}
+  return last})}
+function prep(el){return tf.tidy(()=>{const img=tf.browser.fromPixels(el).toFloat();return tf.image.resizeNearestNeighbor(img,[224,224],false,true).div(255).expandDims(0)})}
+async function predict(el){const x=prep(el);const y=run(x);const p=(await y.data())[0];x.dispose();y.dispose();return p}
+async function show(el){if(!ready)return;$("status").textContent="Analysing...";const p=await predict(el);
+  $("verdict").textContent=p>0.5?"Real":"Fake";$("verdict").style.color=p>0.5?"var(--accent2)":"var(--danger)";$("prob").textContent=p.toFixed(4);$("needle").style.left=(p*100)+"%";$("status").textContent="CNN prediction (real model output)"}
+const loadImg=src=>new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=src});
+function setPreview(src){$("ph").hidden=true;$("cam").hidden=true;$("preview").hidden=false;$("preview").src=src;$("preview").onload=()=>show($("preview"))}
+$("file").onchange=e=>{const f=e.target.files[0];if(f)setPreview(URL.createObjectURL(f))};
+const d=$("drop");["dragover","dragenter"].forEach(ev=>d.addEventListener(ev,e=>e.preventDefault()));d.addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)setPreview(URL.createObjectURL(f))});
+let stream;$("camBtn").onclick=async e=>{e.preventDefault();try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});$("cam").srcObject=stream;$("cam").hidden=false;$("preview").hidden=true;$("ph").hidden=true;$("snap").hidden=false}catch(err){$("status").textContent="Camera unavailable: "+err.message}};
+$("snap").onclick=e=>{e.preventDefault();const v=$("cam"),c=document.createElement("canvas");c.width=v.videoWidth;c.height=v.videoHeight;c.getContext("2d").drawImage(v,0,0);stream&&stream.getTracks().forEach(t=>t.stop());$("snap").hidden=true;setPreview(c.toDataURL("image/jpeg",.92))};
+$("pname").oninput=()=>$("gq").textContent=$("pname").value;
+(async()=>{try{await tf.ready();
+  const [g,b]=await Promise.all([fetch("model/graph.json").then(r=>r.json()),fetch("model/weights.bin").then(r=>r.arrayBuffer())]);G=g;W=new Float32Array(b);build();ready=true;
+  $("status").textContent="Model loaded ("+tf.getBackend()+"). Choose a photo.";
+  $("thumbs").innerHTML=G.samples.map((s,i)=>`<img src="${s.file}" data-i="${i}" alt="Sample ${i+1} (${s.folder})" title="Sample ${i+1} (${s.folder})">`).join("");
+  $("thumbs").onclick=e=>{if(e.target.dataset.i)setPreview(e.target.src)};
+  const rows=[];for(const [i,s] of G.samples.entries()){const p=await predict(await loadImg(s.file));rows.push(`<tr><td>Sample ${i+1}</td><td>${s.folder}</td><td>${s.py.toFixed(4)}</td><td>${p.toFixed(4)}</td></tr>`)}
+  $("val").innerHTML=rows.join("");
+}catch(e){$("status").textContent="Model failed to load: "+e.message}})();
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HR Analytics Dashboard</title>
+<meta name="description" content="Employee attrition dashboard built from the HR Analytics dataset. Web version of Khuwaish Goyal's Shiny for Python app (anova repo).">
+<link rel="stylesheet" href="base.css">
+<style>
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(2,1fr);margin-bottom:16px}
+@media(min-width:760px){.kpis{grid-template-columns:repeat(6,1fr)}}
+.kpi{border-radius:12px;padding:14px;color:#fff}.kpi span{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;opacity:.85}.kpi b{display:block;font-size:1.55rem;margin-top:4px}
+.chart{position:relative;height:280px}
+.dept{display:flex;flex-wrap:wrap;gap:8px}
+.dept button{background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.dept button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+svg text{fill:#8d97ab;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap" style="max-width:1100px">
+  <header class="top"><div class="logo">HR</div><div><h1>HR Analytics Dashboard</h1><p>Attrition across education, age, gender, salary, tenure and job role · 1,480 employees.</p></div></header>
+
+  <div class="kpis" id="kpis"></div>
+  <section class="card" style="margin-bottom:16px">
+    <label style="margin-top:0">Select department(s)</label>
+    <div class="dept" id="dept"></div>
+    <p class="small muted" style="margin:8px 0 0">None selected means all departments.</p>
+  </section>
+
+  <div class="grid g2">
+    <section class="card"><h2>Attrition by Education Level</h2><div class="chart"><canvas id="cEdu"></canvas></div></section>
+    <section class="card"><h2>Age Distribution of Attrition</h2><div class="chart"><canvas id="cAge"></canvas></div></section>
+    <section class="card"><h2>Attrition by Gender</h2><div class="chart"><canvas id="cGen"></canvas></div></section>
+    <section class="card"><h2>Salary vs Attrition</h2><div class="chart" id="bSal"></div></section>
+    <section class="card"><h2>Years at Company vs Attrition</h2><div class="chart" id="bYrs"></div></section>
+    <section class="card"><h2>Attrition by Job Role</h2><div class="chart" style="height:340px"><canvas id="cRole"></canvas></div></section>
+  </div>
+  <p class="small muted" style="margin-top:14px">Same six views and metrics as the original Shiny app (<code>app.py</code>), computed in your browser from <code>HR_Analytics.csv</code>. In the original, the department dropdown was not connected to the charts; here it filters the metrics and all charts. Education is coded 1–5 as in the dataset.</p>
+
+  <footer class="foot"><span>Web version of HR Analytics Dashboard — source: <a href="https://github.com/KhuwaishGoyal28/anova">github.com/KhuwaishGoyal28/anova</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+Chart.defaults.color="#8d97ab";Chart.defaults.borderColor="#243048";Chart.defaults.font.family="Inter,system-ui,sans-serif";
+const NO="#5b8cff",YES="#ef5d6b";
+function parseCSV(t){const out=[];let row=[],cur="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch=='"'&&t[i+1]=='"'){cur+='"';i++}else if(ch=='"')q=false;else cur+=ch}else if(ch=='"')q=true;else if(ch==","){row.push(cur);cur=""}else if(ch=="\n"||ch=="\r"){if(ch=="\r"&&t[i+1]=="\n")i++;row.push(cur);out.push(row);row=[];cur=""}else cur+=ch}if(cur||row.length){row.push(cur);out.push(row)}return out}
+let all=[],sel=new Set(),charts={};
+const quant=(a,p)=>{const s=[...a].sort((x,y)=>x-y),i=(s.length-1)*p,lo=Math.floor(i);return s.length?s[lo]+(s[Math.min(lo+1,s.length-1)]-s[lo])*(i-lo):0};
+function boxSVG(el,groups){const W=el.clientWidth||400,H=el.clientHeight||280,pad={l:52,r:14,t:12,b:30};
+  const allv=groups.flatMap(g=>g.v);const mx=Math.max(...allv),mn=Math.min(...allv);const y=v=>pad.t+(H-pad.t-pad.b)*(1-(v-mn)/((mx-mn)||1));
+  let s=`<svg width="${W}" height="${H}" role="img">`;for(let k=0;k<=4;k++){const v=mn+(mx-mn)*k/4;s+=`<line x1="${pad.l}" x2="${W-pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="#243048"/><text x="${pad.l-6}" y="${y(v)+4}" text-anchor="end">${Math.round(v).toLocaleString()}</text>`}
+  const bw=(W-pad.l-pad.r)/groups.length;groups.forEach((g,i)=>{if(!g.v.length)return;const q1=quant(g.v,.25),q2=quant(g.v,.5),q3=quant(g.v,.75),iq=q3-q1;
+    const lo=Math.min(...g.v.filter(v=>v>=q1-1.5*iq)),hi=Math.max(...g.v.filter(v=>v<=q3+1.5*iq));const cx=pad.l+bw*(i+.5),w=bw*.42;
+    s+=`<line x1="${cx}" x2="${cx}" y1="${y(hi)}" y2="${y(lo)}" stroke="#8d97ab"/><rect x="${cx-w/2}" y="${y(q3)}" width="${w}" height="${Math.max(1,y(q1)-y(q3))}" fill="${g.c}" fill-opacity=".55" stroke="${g.c}"/><line x1="${cx-w/2}" x2="${cx+w/2}" y1="${y(q2)}" y2="${y(q2)}" stroke="#fff" stroke-width="2"/>`;
+    g.v.filter(v=>v<lo||v>hi).forEach(v=>s+=`<circle cx="${cx}" cy="${y(v)}" r="2" fill="none" stroke="${g.c}"/>`);
+    s+=`<text x="${cx}" y="${H-10}" text-anchor="middle">Attrition = ${g.n}</text>`});el.innerHTML=s+"</svg>"}
+function bar(id,labels,no,yes,horizontal){const cfg={type:"bar",data:{labels,datasets:[{label:"No attrition",data:no,backgroundColor:NO},{label:"Attrition",data:yes,backgroundColor:YES}]},options:{maintainAspectRatio:false,indexAxis:horizontal?"y":"x",plugins:{legend:{position:"bottom"}}}};
+  if(charts[id]){charts[id].data=cfg.data;charts[id].update()}else charts[id]=new Chart($(id),cfg)}
+function countBy(rows,key,labels){return[labels.map(l=>rows.filter(r=>r[key]==l&&!r.att).length),labels.map(l=>rows.filter(r=>r[key]==l&&r.att).length)]}
+function render(){const df=sel.size?all.filter(r=>sel.has(r.Department)):all;const n=df.length,att=df.filter(r=>r.att).length,mean=k=>df.reduce((s,r)=>s+r[k],0)/(n||1);
+  const K=[["Total Employees",n,"#3563e9"],["Attrition",att,"#d9434f"],["Attrition Rate",(n?att/n*100:0).toFixed(1)+"%","#c98a12"],["Average Age",Math.floor(mean("Age")),"#1f9d6b"],["Average Salary",(mean("MonthlyIncome")/1000).toFixed(1)+"K","#1b8fb0"],["Avg Years at Company",Math.floor(mean("YearsAtCompany")),"#4b5568"]];
+  $("kpis").innerHTML=K.map(([t,v,c])=>`<div class="kpi" style="background:${c}"><span>${t}</span><b>${v}</b></div>`).join("");
+  const edu=[1,2,3,4,5];bar("cEdu",edu.map(String),...countBy(df,"Education",edu));
+  const bins=[];const amin=18,amax=60,bwid=(amax-amin)/20;for(let i=0;i<20;i++)bins.push(amin+i*bwid);
+  const hist=f=>bins.map((b,i)=>df.filter(r=>f(r)&&r.Age>=b&&(i==19?r.Age<=amax:r.Age<b+bwid)).length);
+  bar("cAge",bins.map(b=>Math.round(b)),hist(r=>!r.att),hist(r=>r.att));
+  const g=[...new Set(all.map(r=>r.Gender))];bar("cGen",g,...countBy(df,"Gender",g));
+  const roles=[...new Set(all.map(r=>r.JobRole))];bar("cRole",roles,...countBy(df,"JobRole",roles),true);
+  boxSVG($("bSal"),[{n:0,c:NO,v:df.filter(r=>!r.att).map(r=>r.MonthlyIncome)},{n:1,c:YES,v:df.filter(r=>r.att).map(r=>r.MonthlyIncome)}]);
+  boxSVG($("bYrs"),[{n:0,c:NO,v:df.filter(r=>!r.att).map(r=>r.YearsAtCompany)},{n:1,c:YES,v:df.filter(r=>r.att).map(r=>r.YearsAtCompany)}]);
+}
+fetch("HR_Analytics.csv").then(r=>r.text()).then(t=>{const rows=parseCSV(t.replace(/^﻿/,"")).filter(r=>r.length>5);const h=rows[0];
+  all=rows.slice(1).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]);["Age","MonthlyIncome","YearsAtCompany","Education"].forEach(k=>o[k]=+o[k]);o.att=o.Attrition==="Yes";return o});
+  const depts=[...new Set(all.map(r=>r.Department))];$("dept").innerHTML=depts.map(d=>`<button data-d="${d}">${d}</button>`).join("");
+  $("dept").onclick=e=>{const d=e.target.dataset.d;if(!d)return;sel.has(d)?sel.delete(d):sel.add(d);e.target.classList.toggle("on");render()};
+  render();let t2;addEventListener("resize",()=>{clearTimeout(t2);t2=setTimeout(render,150)});
+});
+</script>
+</body>
+</html>

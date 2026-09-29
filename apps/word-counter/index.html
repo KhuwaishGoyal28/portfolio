@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Word Counter</title>
+<meta name="description" content="Count words in pasted paragraphs and PDF files, right in your browser. Web version of Khuwaish Goyal's Python Word-Counter.">
+<link rel="stylesheet" href="base.css">
+<style>
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--panel2);transition:border-color .2s}
+.drop.over,.drop:hover{border-color:var(--accent)}
+.drop input{display:none}
+.total{font-size:3rem;font-weight:800;letter-spacing:-.03em;line-height:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">W</div><div><h1>Word Counter</h1><p>Count words in your own paragraphs plus an optional PDF. Runs locally, nothing is uploaded.</p></div></header>
+
+  <div class="grid g2">
+    <section class="card">
+      <h2>1 · Your paragraphs</h2>
+      <textarea id="text" placeholder="Type or paste multiple paragraphs here..."></textarea>
+      <div class="row small muted" style="margin-top:8px;justify-content:space-between"><span id="textCount">0 words</span><button class="ghost" id="clearText" type="button">Clear</button></div>
+    </section>
+    <section class="card">
+      <h2>2 · Optional PDF</h2>
+      <label class="drop" id="drop" for="pdf">
+        <input type="file" id="pdf" accept="application/pdf,.pdf">
+        <div id="dropMsg"><b>Choose a PDF</b><br><span class="muted small">or drag it here</span></div>
+      </label>
+      <p class="small muted" id="pdfInfo" style="margin:10px 0 0">No PDF selected.</p>
+      <p class="small" id="pdfCount"></p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <div class="row" style="justify-content:space-between">
+      <div><span class="badge">Total word count</span><div class="total" id="total" style="margin-top:8px">0</div></div>
+      <div class="grid" style="grid-template-columns:repeat(2,minmax(110px,1fr));gap:10px">
+        <div class="stat"><b id="sText">0</b><span>From text</span></div>
+        <div class="stat"><b id="sPdf">0</b><span>From PDF</span></div>
+      </div>
+    </div>
+    <p class="small muted" style="margin:14px 0 0">Words are counted exactly like the original script: text is split on whitespace (Python <code>str.split()</code>). PDF text is extracted page by page and joined with spaces.</p>
+  </section>
+
+  <footer class="foot"><span>Web version of Word-Counter — source: <a href="https://github.com/KhuwaishGoyal28/Word-Counter">github.com/KhuwaishGoyal28/Word-Counter</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const $=id=>document.getElementById(id);
+// Port of count_words(): len(text.split())
+const countWords=t=>{const s=t.trim();return s?s.split(/\s+/).length:0};
+let pdfWords=0;
+function render(){
+  const tw=countWords($("text").value);
+  $("textCount").textContent=tw+" word"+(tw===1?"":"s");
+  $("sText").textContent=tw.toLocaleString();$("sPdf").textContent=pdfWords.toLocaleString();
+  $("total").textContent=(tw+pdfWords).toLocaleString();
+}
+$("text").addEventListener("input",render);
+$("clearText").onclick=()=>{$("text").value="";render()};
+// Port of read_pdf(): extract text from each page, join with " "
+async function readPdf(file){
+  $("pdfInfo").textContent="Reading "+file.name+"...";$("pdfCount").textContent="";
+  try{
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    let text="";
+    for(let i=1;i<=pdf.numPages;i++){
+      const page=await pdf.getPage(i);const c=await page.getTextContent();
+      text+=c.items.map(it=>it.str+(it.hasEOL?"\n":"")).join(" ")+" ";
+    }
+    pdfWords=countWords(text);
+    $("pdfInfo").textContent=file.name+" · "+pdf.numPages+" page"+(pdf.numPages>1?"s":"");
+    $("pdfCount").textContent="Words counted from PDF: "+pdfWords.toLocaleString();
+    $("dropMsg").innerHTML="<b>"+file.name.replace(/[<>&]/g,"")+"</b><br><span class='muted small'>click to choose another</span>";
+  }catch(e){pdfWords=0;$("pdfInfo").textContent="Error reading PDF: "+e.message}
+  render();
+}
+$("pdf").addEventListener("change",e=>e.target.files[0]&&readPdf(e.target.files[0]));
+const d=$("drop");
+["dragover","dragenter"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.classList.remove("over")}));
+d.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)readPdf(f)});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signova Live Translator</title>
+<meta name="description" content="Live sign-language fingerspelling translator in the browser using your webcam and MediaPipe Hands. Web version of Khuwaish Goyal's Signova.">
+<link rel="stylesheet" href="base.css">
+<style>
+.vid{position:relative;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--line);aspect-ratio:4/3}
+.vid video,.vid canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.pill{position:absolute;top:10px;right:10px;background:rgba(239,93,107,.9);padding:5px 11px;border-radius:99px;font-size:.75rem;font-weight:700;display:flex;gap:6px;align-items:center}
+.pill i{width:8px;height:8px;border-radius:50%;background:#fff}
+.pill.on{background:rgba(56,211,159,.92);color:#062015}
+.start{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;background:rgba(11,15,23,.8)}
+.sign{font-size:1.8rem;font-weight:800;color:var(--accent2);min-height:2.2rem}
+.hold{height:6px;border-radius:99px;background:var(--panel2);overflow:hidden;margin-top:8px}.hold i{display:block;height:100%;width:0;background:var(--accent2);transition:width .08s}
+#transcript{min-height:130px;max-height:220px;overflow-y:auto;font-size:1.2rem;line-height:1.5;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;white-space:pre-wrap;word-break:break-word}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips span{padding:4px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:.82rem;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">S</div><div><h1>Signova · Live Sign-to-Text Translator</h1><p>Hold a fingerspelling shape or gesture in front of your webcam. Held signs are added to the transcript.</p></div></header>
+
+  <div class="grid g2">
+    <section class="card">
+      <div class="vid">
+        <video id="webcam" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="pill" id="pill"><i></i><span id="status">NO HAND</span></div>
+        <div class="start" id="startBox"><div><p style="margin:0 0 12px">The camera is used only in your browser. No video leaves your device.</p><button id="startBtn">Start camera</button><p class="small muted" id="camErr" style="margin:10px 0 0"></p></div></div>
+      </div>
+      <p class="small muted" style="margin:10px 0 0">Works best with one <b>right hand</b>, palm facing the camera, fingers pointing up, in good light. The rules assume a right hand, as in the original.</p>
+    </section>
+
+    <section class="card">
+      <label style="margin-top:0">Active gesture</label>
+      <div class="sign" id="current">---</div>
+      <div class="hold"><i id="holdBar"></i></div>
+      <div class="row" style="justify-content:space-between;margin:18px 0 8px"><h2 style="margin:0">Transcript</h2><div class="row"><button class="ghost" id="space">Space</button><button class="ghost" id="copy">Copy</button><button class="danger" id="clear">Clear</button></div></div>
+      <div id="transcript"><em class="muted">No conversation logged yet.</em></div>
+      <p class="small muted" style="margin:10px 0 0">A sign is confirmed after it is held for 18 consecutive frames (about 0.6 s). Letters are joined; words and phrases get spaces around them.</p>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <h2>What it can recognise</h2>
+    <p class="small muted" style="margin-top:0">These are the outputs the original Signova rule engine can actually produce. It is a hand-written geometric rule set on MediaPipe hand landmarks, not a trained classifier, and it does <b>not</b> cover the full A–Z alphabet (letters such as E, J, K, L, N, P, Q, T and Z have no rule). Similar shapes can be confused.</p>
+    <h3>Phrases</h3><div class="chips"><span>I LOVE YOU</span><span>PLEASE</span><span>THANK YOU</span><span>HELLO / 5</span><span>V / PEACE</span></div>
+    <h3>Letters</h3><div class="chips"><span>A</span><span>B</span><span>C</span><span>D</span><span>F</span><span>I</span><span>M</span><span>O</span><span>R</span><span>S</span><span>U</span><span>W</span><span>X</span><span>Y</span></div>
+    <p class="small muted">Not included in this web version: the original's multi-peer WebRTC video room (streamlit-webrtc with a meeting ID), which needs a Python/Streamlit server.</p>
+  </section>
+
+  <footer class="foot"><span>Web version of Signova — source: <a href="https://github.com/KhuwaishGoyal28/Signova">github.com/KhuwaishGoyal28/Signova</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script>
+const $=id=>document.getElementById(id);
+const video=$("webcam"),canvas=$("overlay"),ctx=canvas.getContext("2d");
+let lastRecognizedCharacter="",characterHoldCounter=0,fullTextString="";
+const CONFIRMATION_THRESHOLD=18;
+
+// Rule engine ported unchanged from Signova app.py (translateSignLanguage)
+function translateSignLanguage(lm){
+  if(!lm||lm.length===0)return "";
+  const wrist=lm[0];
+  const indexExtended=lm[8].y<lm[6].y, middleExtended=lm[12].y<lm[10].y, ringExtended=lm[16].y<lm[14].y, pinkyExtended=lm[20].y<lm[18].y;
+  const thumbExtended=lm[4].x>lm[3].x; // right hand baseline assumption
+  const indexFolded=lm[8].y>lm[5].y, middleFolded=lm[12].y>lm[9].y, ringFolded=lm[16].y>lm[13].y, pinkyFolded=lm[20].y>lm[17].y;
+  const extendedCount=[indexExtended,middleExtended,ringExtended,pinkyExtended].filter(Boolean).length;
+  // Phrases
+  if(indexExtended&&pinkyExtended&&!middleExtended&&!ringExtended&&lm[4].y<lm[8].y)return "I LOVE YOU";
+  if(extendedCount===4&&lm[4].x<lm[5].x)return "PLEASE";
+  if(indexExtended&&middleExtended&&!ringExtended&&!pinkyExtended&&lm[8].y>lm[12].y)return "THANK YOU";
+  // Letters
+  if(indexFolded&&middleFolded&&ringFolded&&pinkyFolded){
+    if(lm[4].y<lm[5].y&&lm[4].x>lm[5].x)return "A";
+    if(lm[4].x<lm[5].x)return "S";
+    return "M";
+  }
+  if(indexExtended&&middleExtended&&ringExtended&&pinkyExtended){if(!thumbExtended)return "B";return "HELLO / 5"}
+  if(indexExtended&&middleExtended&&!ringExtended&&!pinkyExtended){
+    const gap=Math.abs(lm[8].x-lm[12].x);
+    if(gap<0.04)return lm[8].y<wrist.y-0.2?"U":"R";
+    return "V / PEACE";
+  }
+  if(indexExtended&&!middleExtended&&!ringExtended&&!pinkyExtended)return "D";
+  if(!indexExtended&&!middleExtended&&!ringExtended&&pinkyExtended){if(lm[4].y<lm[6].y)return "I";return "Y"}
+  if(lm[8].x<lm[5].x&&lm[12].x<lm[9].x&&extendedCount===0)return "C";
+  if(indexExtended&&!middleExtended&&!ringExtended&&!pinkyExtended&&lm[4].y<lm[8].y)return "G";
+  if(indexExtended&&middleExtended&&!ringExtended&&!pinkyExtended&&Math.abs(lm[8].y-lm[12].y)<0.03)return "H";
+  if(indexExtended&&middleExtended&&ringExtended&&!pinkyExtended)return "W";
+  if(indexExtended&&!middleExtended&&!ringExtended&&pinkyExtended)return "X";
+  if(!indexExtended&&middleExtended&&ringExtended&&pinkyExtended)return "F";
+  if(extendedCount===3&&!pinkyExtended)return "3";
+  if(extendedCount===0&&lm[4].y>lm[10].y)return "O";
+  return "SIGNING";
+}
+function paint(){if(!fullTextString){$("transcript").innerHTML='<em class="muted">No conversation logged yet.</em>';return}$("transcript").textContent=fullTextString;$("transcript").scrollTop=1e9}
+function appendToTranscript(v){if(v===""||v==="SIGNING")return;fullTextString+=v.length>1?" "+v+" ":v;paint()}
+$("space").onclick=()=>{if(fullTextString){fullTextString+=" ";paint()}};
+$("clear").onclick=()=>{fullTextString="";paint();$("current").textContent="---"};
+$("copy").onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(fullTextString.trim());
+
+let hands;
+function onResults(results){
+  canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(results.multiHandLandmarks&&results.multiHandLandmarks.length>0){
+    const lm=results.multiHandLandmarks[0];
+    drawConnectors(ctx,lm,HAND_CONNECTIONS,{color:"#5b8cff",lineWidth:3});drawLandmarks(ctx,lm,{color:"#38d39f",lineWidth:1,radius:3});
+    $("pill").classList.add("on");$("status").textContent="AI ACTIVE";
+    const t=translateSignLanguage(lm);$("current").textContent=t||"Analyzing hand shape...";
+    if(t===lastRecognizedCharacter){characterHoldCounter++;if(characterHoldCounter===CONFIRMATION_THRESHOLD)appendToTranscript(t)}
+    else{lastRecognizedCharacter=t;characterHoldCounter=0}
+    $("holdBar").style.width=(t==="SIGNING"?0:Math.min(1,characterHoldCounter/CONFIRMATION_THRESHOLD)*100)+"%";
+  }else{$("pill").classList.remove("on");$("status").textContent="NO HAND";$("current").textContent="---";characterHoldCounter=0;$("holdBar").style.width="0"}
+}
+$("startBtn").onclick=async()=>{
+  $("startBtn").disabled=true;$("startBtn").textContent="Loading model...";$("camErr").textContent="";
+  try{
+    hands=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});
+    hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
+    hands.onResults(onResults);
+    const camera=new Camera(video,{onFrame:async()=>{await hands.send({image:video})},width:640,height:480});
+    await camera.start();$("startBox").hidden=true;
+  }catch(e){$("startBtn").disabled=false;$("startBtn").textContent="Start camera";$("camErr").textContent="Could not start the camera: "+(e.message||e.name||e)+". Allow camera access and try again."}
+};
+</script>
+</body>
+</html>

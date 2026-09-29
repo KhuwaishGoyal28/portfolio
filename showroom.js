@@ -36,7 +36,16 @@
       demo: 'https://ats-resume-matcher-nu.vercel.app', src: GH + 'ATS-RESUME-MATCHER' },
     { pid: 'gemini', title: 'Gemini Chatbot', tag: 'Room 7 · Flutter', badge: 'Flutter web build', accent: 0xb58cff,
       desc: 'A Flutter chatbot with voice input and speech output, built for the web from the original Dart code.',
-      demo: 'https://flutter-gemini-chatbot-web.vercel.app', src: GH + 'flutter_gemini_chatbot' }
+      demo: 'https://flutter-gemini-chatbot-web.vercel.app', src: GH + 'flutter_gemini_chatbot' },
+    { pid: 'luxury', title: 'Luxury Fraud Detection', tag: 'Room 8 · Computer vision', badge: 'Real CNN in the browser', accent: 0xc9a2ff,
+      desc: 'Upload or point a camera at a luxury product: my trained CNN says real or fake, running in TensorFlow.js.',
+      demo: 'https://fake-luxury-detection-web.vercel.app', src: GH + 'Fake_Luxury_Detection' },
+    { pid: 'signova', title: 'Signova', tag: 'Room 9 · Accessibility', badge: 'Webcam sign-language translator', accent: 0x5eead4,
+      desc: 'Hand signs to text, live from your webcam, built so people who cannot hear can communicate.',
+      demo: 'https://signova-web-omega.vercel.app', src: GH + 'Signova' },
+    { pid: 'patient', title: 'AI Patient Diagnosis', tag: 'Room 10 · Healthcare AI', badge: 'PyTorch model in JavaScript', accent: 0xff7a7a,
+      desc: 'My trained patient-diagnosis network, running the exact same weights in your browser.',
+      demo: 'https://ai-patient-diagnosis-web.vercel.app', src: GH + 'AI_Patient_Diagnosis' }
   ];
   const AWARDS = [
     ['1st', 'IEEE Rapid Innovation Challenge', 'Education & jobs app · 2024'],

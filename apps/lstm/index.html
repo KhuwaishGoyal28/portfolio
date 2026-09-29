@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LSTM Stock Forecast</title>
+<meta name="description" content="A two-layer LSTM forecasting Adani Ports closing prices, running in the browser. Web version of Khuwaish Goyal's LSTM notebook.">
+<link rel="stylesheet" href="base.css">
+<style>.chart{position:relative;height:300px}@media(min-width:760px){.chart{height:340px}}input[type=range]{padding:0;accent-color:var(--accent);background:none;border:0}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">∿</div><div><h1>LSTM Stock Price Forecast · Adani Ports</h1><p>Two stacked LSTM layers predict the next day's close from the previous 60 closes. Inference runs in your browser.</p></div></header>
+
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+    <div class="stat"><b id="kMse">–</b><span>LSTM test MSE (browser)</span></div>
+    <div class="stat"><b>825.43</b><span>LSTM MSE in notebook</span></div>
+    <div class="stat"><b>123,209</b><span>Prophet MSE in notebook</span></div>
+    <div class="stat"><b id="kRows">–</b><span>Trading days</span></div>
+  </div>
+
+  <section class="card">
+    <h2>Last 30 days: actual vs LSTM forecast</h2>
+    <div class="chart"><canvas id="c1"></canvas></div>
+    <p class="small muted" style="margin:10px 0 0">Same setup as the notebook: MinMax-scaled close, windows of 60, the last 30 windows held out as the test set. Each point is a one-step-ahead prediction.</p>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>Try any day</h2>
+    <label for="day">Predict the close for</label>
+    <input type="range" id="day" min="60">
+    <div class="grid g3" style="margin-top:12px;gap:12px">
+      <div class="stat"><b id="dDate">–</b><span>Date</span></div>
+      <div class="stat"><b id="dPred">–</b><span>LSTM prediction (₹)</span></div>
+      <div class="stat"><b id="dAct">–</b><span>Actual close (₹)</span></div>
+    </div>
+    <div class="chart" style="margin-top:14px"><canvas id="c2"></canvas></div>
+    <p class="small muted" style="margin:10px 0 0">Note: days before the final 30 were part of the training data, so the model has seen them.</p>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>About this model</h2>
+    <p class="small" style="margin-top:0">Architecture from the notebook: <code>LSTM(50, return_sequences=True) → LSTM(50) → Dense(1)</code>, Adam, MSE loss, 20 epochs, batch size 16, trained on <code>ADANIPORTS.csv</code> (NSE daily data, 2007–2021). The notebook also explored seasonal decomposition and a Prophet baseline.</p>
+    <div class="note">The notebook does not save a trained model file, so the weights used here come from re-running the notebook's exact training code (seed 42). Its test MSE is close to the notebook's reported 825.43, but not identical. The LSTM forward pass is written in plain JavaScript and matches Keras to within ₹0.001. This is a learning project, not investment advice.</div>
+  </section>
+
+  <footer class="foot"><span>Web version of LSTM — source: <a href="https://github.com/KhuwaishGoyal28/LSTM">github.com/KhuwaishGoyal28/LSTM</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+Chart.defaults.color="#8d97ab";Chart.defaults.borderColor="#243048";Chart.defaults.font.family="Inter,system-ui,sans-serif";
+const sig=x=>1/(1+Math.exp(-x));
+function lstmLayer(seq,K,R,b,units,retSeq){let h=new Array(units).fill(0),c=new Array(units).fill(0);const out=[];
+  for(const x of seq){const z=new Float64Array(4*units);
+    for(let j=0;j<4*units;j++){let s=b[j];for(let k=0;k<x.length;k++)s+=x[k]*K[k][j];for(let k=0;k<units;k++)s+=h[k]*R[k][j];z[j]=s}
+    const nh=new Array(units),nc=new Array(units);
+    for(let u=0;u<units;u++){const i=sig(z[u]),f=sig(z[units+u]),g=Math.tanh(z[2*units+u]),o=sig(z[3*units+u]);nc[u]=f*c[u]+i*g;nh[u]=o*Math.tanh(nc[u])}
+    h=nh;c=nc;if(retSeq)out.push(h)}
+  return retSeq?out:h}
+let D;
+function predictNext(win){const W=D.weights,{min,max}=D.scaler;const s=win.map(v=>[(v-min)/(max-min)]);
+  const s1=lstmLayer(s,W[0],W[1],W[2],50,true);const h=lstmLayer(s1,W[3],W[4],W[5],50,false);
+  let y=W[7][0];for(let k=0;k<50;k++)y+=h[k]*W[6][k][0];return y*(max-min)+min}
+const inr=v=>v.toLocaleString("en-IN",{maximumFractionDigits:2});
+let c2;
+fetch("lstm.json").then(r=>r.json()).then(d=>{D=d;const C=D.close,n=C.length;$("kRows").textContent=n.toLocaleString();
+  const preds=[],act=[],lab=[];for(let t=0;t<30;t++){const i=n-30+t;preds.push(predictNext(C.slice(i-60,i)));act.push(C[i]);lab.push(D.dates[i])}
+  $("kMse").textContent=inr(preds.reduce((s,p,i)=>s+(p-act[i])**2,0)/30);
+  new Chart($("c1"),{type:"line",data:{labels:lab,datasets:[{label:"Actual",data:act,borderColor:"#e6eaf2",pointRadius:0,tension:.2},{label:"LSTM forecast",data:preds,borderColor:"#5b8cff",borderDash:[5,4],pointRadius:0,tension:.2}]},options:{maintainAspectRatio:false,interaction:{mode:"index",intersect:false},scales:{x:{ticks:{maxTicksLimit:6}}}}});
+  const r=$("day");r.max=n-1;r.value=n-1;
+  function upd(){const i=+r.value,p=predictNext(C.slice(i-60,i));$("dDate").textContent=D.dates[i];$("dPred").textContent=inr(p);$("dAct").textContent=inr(C[i]);
+    const lo=Math.max(0,i-120);const labels=D.dates.slice(lo,i+1),ds=C.slice(lo,i+1),pp=labels.map((_,k)=>k===labels.length-1?p:null);
+    if(!c2)c2=new Chart($("c2"),{type:"line",data:{labels,datasets:[{label:"Close",data:ds,borderColor:"#e6eaf2",pointRadius:0,tension:.2},{label:"Prediction",data:pp,borderColor:"#38d39f",backgroundColor:"#38d39f",pointRadius:6,showLine:false}]},options:{maintainAspectRatio:false,animation:false,scales:{x:{ticks:{maxTicksLimit:6}}}}});
+    else{c2.data.labels=labels;c2.data.datasets[0].data=ds;c2.data.datasets[1].data=pp;c2.update()}}
+  let raf;r.oninput=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(upd)};upd();
+});
+</script>
+</body>
+</html>

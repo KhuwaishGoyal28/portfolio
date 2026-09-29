@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Patient Diagnosis</title>
+<meta name="description" content="The trained PyTorch EHR model from Khuwaish Goyal's AI Patient Diagnosis project, running in the browser with the exact same forward pass.">
+<link rel="stylesheet" href="base.css">
+<style>
+.out{font-size:2.2rem;font-weight:800;letter-spacing:-.02em}
+.gauge{height:14px;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--warn),var(--danger));position:relative;margin:14px 0 6px}
+.gauge i{position:absolute;top:-5px;width:4px;height:24px;background:#fff;border-radius:2px;transform:translateX(-2px);transition:left .25s}
+.rng{display:grid;grid-template-columns:1fr 84px;gap:10px;align-items:center}
+input[type=range]{padding:0;accent-color:var(--accent);background:none;border:0}
+.arch{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem}
+.arch span{padding:6px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><div class="logo">+</div><div><h1>AI Patient Diagnosis</h1><p>A small PyTorch neural network trained on synthetic EHR records, running live in your browser.</p></div></header>
+  <div class="note" style="margin-bottom:16px"><b>Educational demo, not medical advice.</b> The model was trained on a synthetic dataset whose Diagnosis labels were generated at random (<code>np.random.choice([0, 1])</code> in the project's data-generation notebook). There is no real signal to learn, so its predictions are close to 50/50 and carry no clinical meaning.</div>
+  <div class="grid g2">
+    <section class="card">
+      <h2>Patient vitals</h2>
+      <div id="inputs"></div>
+      <div class="row" style="margin-top:14px"><button class="ghost" id="rand">Random row from dataset</button></div>
+      <p class="small muted" id="rowinfo" style="margin:8px 0 0"></p>
+    </section>
+    <section class="card">
+      <h2>Model output</h2>
+      <div class="out" id="label">–</div>
+      <div class="gauge"><i id="needle" style="left:50%"></i></div>
+      <div class="row small muted" style="justify-content:space-between"><span>0 · Healthy</span><span>threshold 0.5</span><span>1 · Sick</span></div>
+      <p style="margin:14px 0 0">Sigmoid output: <b id="prob">–</b></p>
+      <h3>Network</h3>
+      <div class="arch"><span>4 inputs</span>→<span>StandardScaler</span>→<span>Linear 4→16 + ReLU</span>→<span>Linear 16→8 + ReLU</span>→<span>Linear 8→1 + Sigmoid</span></div>
+    </section>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <h2>Checked against the original</h2>
+    <p class="small" style="margin-top:0">The weights in <code>ehr_model.pth</code> and the mean/scale of <code>scaler.pkl</code> were exported to JSON. This page runs the same forward pass as <code>PatientDiagnosisModel</code> and the Flask <code>/predict</code> endpoint (scale → model → "Sick" if &gt; 0.5). Outputs match PyTorch to about 7 decimal places:</p>
+    <div class="scroll"><table><thead><tr><th>Age, BP, Chol, HR</th><th>PyTorch</th><th>This page</th></tr></thead><tbody id="val"></tbody></table></div>
+    <p class="small muted" id="acc" style="margin:12px 0 0"></p>
+  </section>
+  <footer class="foot"><span>Web version of AI Patient Diagnosis — source: <a href="https://github.com/KhuwaishGoyal28/AI_Patient_Diagnosis">github.com/KhuwaishGoyal28/AI_Patient_Diagnosis</a></span><a href="https://khuwaish-portfolio.vercel.app">khuwaish-portfolio.vercel.app</a></footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const F=[["Age","years",20,79,50],["BloodPressure","mmHg",80,179,129],["Cholesterol","mg/dL",100,299,199],["HeartRate","bpm",60,119,90]];
+const PY=[[[58,113,173,84],0.5151766538619995],[[71,171,162,68],0.5369506478309631],[[30,120,180,70],0.46357467770576477],[[80,190,280,110],0.5676737427711487],[[45,140,220,90],0.5276600122451782]];
+let M=null,rows=[];
+const lin=(W,b,x)=>W.map((r,i)=>r.reduce((s,w,j)=>s+w*x[j],b[i]));const relu=v=>v.map(x=>Math.max(0,x));
+function predict(f){const x=f.map((v,i)=>(v-M.scaler.mean[i])/M.scaler.scale[i]);
+  let h=relu(lin(M["fc1.weight"],M["fc1.bias"],x));h=relu(lin(M["fc2.weight"],M["fc2.bias"],h));return 1/(1+Math.exp(-lin(M["fc3.weight"],M["fc3.bias"],h)[0]))}
+$("inputs").innerHTML=F.map(([n,u,lo,hi,v],i)=>`<label for="r${i}">${n.replace(/([a-z])([A-Z])/g,"$1 $2")} (${u})</label><div class="rng"><input type="range" id="r${i}" min="${lo}" max="${hi}" value="${v}"><input type="number" id="n${i}" value="${v}"></div>`).join("");
+const vals=()=>F.map((_,i)=>parseFloat($("n"+i).value)||0);
+function run(){if(!M)return;const p=predict(vals());$("prob").textContent=p.toFixed(4);$("label").textContent=p>0.5?"Sick":"Healthy";$("label").style.color=p>0.5?"var(--danger)":"var(--accent2)";$("needle").style.left=(p*100)+"%"}
+F.forEach((_,i)=>{$("r"+i).oninput=()=>{$("n"+i).value=$("r"+i).value;$("rowinfo").textContent="";run()};$("n"+i).oninput=()=>{$("r"+i).value=$("n"+i).value;$("rowinfo").textContent="";run()}});
+$("rand").onclick=()=>{if(!rows.length)return;const r=rows[Math.floor(Math.random()*rows.length)];F.forEach((_,i)=>{$("n"+i).value=r[i];$("r"+i).value=r[i]});$("rowinfo").textContent="Dataset label for this row: "+(r[4]?"1 (Sick)":"0 (Healthy)");run()};
+Promise.all([fetch("model.json").then(r=>r.json()),fetch("synthetic_patient_data.csv").then(r=>r.text())]).then(([m,csv])=>{
+  M=m;rows=csv.trim().split(/\r?\n/).slice(1).map(l=>l.split(",").map(Number));
+  $("val").innerHTML=PY.map(([f,p])=>`<tr><td>${f.join(", ")}</td><td>${p.toFixed(7)}</td><td>${predict(f).toFixed(7)}</td></tr>`).join("");
+  const acc=rows.filter(r=>(predict(r.slice(0,4))>0.5?1:0)===r[4]).length/rows.length;
+  $("acc").textContent=`Accuracy on all ${rows.length} rows of synthetic_patient_data.csv, computed in your browser: ${(acc*100).toFixed(1)}% (label balance: ${(rows.filter(r=>r[4]).length/rows.length*100).toFixed(1)}% sick). About chance level, as expected for random labels.`;
+  run();
+}).catch(e=>{$("label").textContent="Model failed to load"});
+</script>
+</body>
+</html>
