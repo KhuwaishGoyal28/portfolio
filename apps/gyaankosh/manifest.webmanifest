@@ -1,0 +1,15 @@
+{
+  "name": "Gyaankosh",
+  "short_name": "Gyaankosh",
+  "description": "Learn and quiz yourself on programming topics. Web version of an Android app.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0e9e2",
+  "theme_color": "#5d6b62",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

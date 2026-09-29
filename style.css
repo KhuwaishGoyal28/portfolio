@@ -240,3 +240,6 @@ a.card:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 60px -30px rgba
 .portrait{display:none}.portrait.has{display:grid}
 .tilt{transition:border-color .3s,box-shadow .3s!important}
 @media (max-width:720px){.cover-panels{grid-template-columns:1fr}}
+.trophy .try{display:inline-block;margin-top:12px;font-weight:700;font-size:.88rem;color:var(--teal)}
+.trophy .try:hover{color:var(--ink)}
+.apps-web{margin-top:56px}.apps-note{color:var(--mute);max-width:720px;margin-bottom:18px;font-size:.95rem}
