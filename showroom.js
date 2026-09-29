@@ -16,25 +16,25 @@
     { title: 'Trophy Hall', tag: 'Room 0 · Awards', badge: '3× First place', accent: 0xffb454, mode: 'reel',
       desc: 'Six podiums and finals across IEEE, Jain University, Salesforce, Honeywell and Rakuten. Every project in the next rooms comes from this journey.',
       trophies: true },
-    { title: 'NayiPehal', tag: 'Room 1 · Android → Web', badge: '🏆 1st · IEEE Rapid Innovation 2024', accent: 0xffb454,
+    { pid: 'nayipehal', title: 'NayiPehal', tag: 'Room 1 · Android → Web', badge: '🏆 1st · IEEE Rapid Innovation 2024', accent: 0xffb454,
       desc: 'Education, jobs, mentors and community in one app for underserved communities. Sign in, take a course, book a mentor.',
       demo: 'https://nayipehal-web.vercel.app', src: GH + 'NayiPehal', trophy: true },
-    { title: 'FitForce', tag: 'Room 2 · Android → Web', badge: '★ Top Team · Salesforce Study Jam 2024', accent: 0xff7a7a,
+    { pid: 'fitforce', title: 'FitForce', tag: 'Room 2 · Android → Web', badge: '★ Top Team · Salesforce Study Jam 2024', accent: 0xff7a7a,
       desc: 'A wellness app for working professionals: steps, workouts, meals, paired devices and a health-only chatbot.',
       demo: 'https://fitforce-web.vercel.app', src: GH + 'FITFORCE', trophy: true },
-    { title: 'EvalPro', tag: 'Room 3 · AI · Live product', badge: '● Live · FastAPI + OCR', accent: 0x5eead4,
+    { pid: 'evalpro', title: 'EvalPro', tag: 'Room 3 · AI · Live product', badge: '● Live · FastAPI + OCR', accent: 0x5eead4,
       desc: 'Upload a handwritten answer sheet and get OCR text, a 50-point rubric and an annotated, teacher-style checked paper.',
       demo: 'https://ai-exam-evaluator-nine.vercel.app', src: GH + 'ai-exam-evaluator' },
-    { title: 'IntelliHire', tag: 'Room 4 · Android → Web', badge: 'Quizzes + voice interview', accent: 0x8b9cff,
+    { pid: 'intellihire', title: 'IntelliHire', tag: 'Room 4 · Android → Web', badge: 'Quizzes + voice interview', accent: 0x8b9cff,
       desc: 'Aptitude, logic and technical quizzes plus a spoken interview coach with a scored report.',
       demo: 'https://intellihire-web.vercel.app', src: GH + 'IntelliHire' },
-    { title: 'Gyaankosh', tag: 'Room 5 · Android → Web', badge: '8 topics · ~470 questions', accent: 0xffd166,
+    { pid: 'gyaankosh', title: 'Gyaankosh', tag: 'Room 5 · Android → Web', badge: '8 topics · ~470 questions', accent: 0xffd166,
       desc: 'A timed quiz app across Java, Python, C, C++, MySQL and more, with a profile and leaderboard.',
       demo: 'https://gyaankosh-web.vercel.app', src: GH + 'GayanKhosh' },
-    { title: 'ATS Resume Matcher', tag: 'Room 6 · NLP', badge: 'TF-IDF + keyword scoring', accent: 0x5eead4,
+    { pid: 'ats', title: 'ATS Resume Matcher', tag: 'Room 6 · NLP', badge: 'TF-IDF + keyword scoring', accent: 0x5eead4,
       desc: 'Drop in a resume and a job description; get a match score and the skills you are missing. Runs fully in your browser.',
       demo: 'https://ats-resume-matcher-nu.vercel.app', src: GH + 'ATS-RESUME-MATCHER' },
-    { title: 'Gemini Chatbot', tag: 'Room 7 · Flutter', badge: 'Flutter web build', accent: 0xb58cff,
+    { pid: 'gemini', title: 'Gemini Chatbot', tag: 'Room 7 · Flutter', badge: 'Flutter web build', accent: 0xb58cff,
       desc: 'A Flutter chatbot with voice input and speech output, built for the web from the original Dart code.',
       demo: 'https://flutter-gemini-chatbot-web.vercel.app', src: GH + 'flutter_gemini_chatbot' }
   ];
@@ -182,7 +182,7 @@
 
   /* ---------- HUD / cinema DOM ---------- */
   const cinema = $('#cinema'), frameEl = $('#sr-frame'), poster2 = $('#sr-poster'), reel = $('#sr-reel'), interact = $('#sr-interact');
-  const hud = { tag: $('#hud-tag'), title: $('#hud-title'), badge: $('#hud-badge'), desc: $('#hud-desc'), live: $('#hud-live'), src: $('#hud-src'), count: $('#hud-count') };
+  const hud = { tag: $('#hud-tag'), title: $('#hud-title'), badge: $('#hud-badge'), desc: $('#hud-desc'), live: $('#hud-live'), src: $('#hud-src'), count: $('#hud-count'), room: $('#hud-room') };
   const dots = $('#sr-dots');
   dots.innerHTML = ROOMS.map((r, i) => `<li><button aria-label="Go to ${r.title}" data-i="${i}"></button></li>`).join('');
   const dotBtns = [...dots.querySelectorAll('button')];
@@ -202,12 +202,13 @@
     hud.count.textContent = String(i).padStart(2, '0') + ' / ' + String(N - 1).padStart(2, '0');
     hud.live.hidden = !r.demo; hud.src.hidden = !r.src;
     if (r.demo) hud.live.href = r.demo;
+    hud.room.hidden = !r.pid; if (r.pid) hud.room.href = 'project.html?p=' + r.pid;
     if (r.src) hud.src.href = r.src;
     dotBtns.forEach((b, k) => b.classList.toggle('on', k === i));
     sec.style.setProperty('--accent', hex(r.accent));
     cinema.dataset.mode = r.mode === 'reel' ? 'reel' : 'app';
     poster2.querySelector('h4').textContent = r.title;
-    const a = poster2.querySelector('a'); a.href = r.demo || '#'; a.hidden = !r.demo;
+    const a = poster2.querySelector('a'); a.href = r.pid ? 'project.html?p=' + r.pid : (r.demo || '#'); a.hidden = !r.demo; a.removeAttribute('target');
   }
   function unload() { clearTimeout(loadTimer); frameEl.classList.remove('ready'); frameEl.removeAttribute('src'); cinema.classList.remove('live'); }
   function scheduleLoad(i) {

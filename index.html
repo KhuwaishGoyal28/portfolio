@@ -113,7 +113,7 @@
   <div class="sr-stage">
     <canvas id="sr-gl" aria-hidden="true"></canvas>
     <div class="cinema" id="cinema" data-mode="reel">
-      <div class="sr-poster" id="sr-poster"><span class="mono">Now showing</span><h4></h4><a class="btn primary" target="_blank" rel="noopener">Open the live demo ↗</a></div>
+      <div class="sr-poster" id="sr-poster"><span class="mono">Now showing</span><h4></h4><a class="btn primary">▶ Play full screen</a></div>
       <iframe id="sr-frame" title="Live project demo" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
       <div class="sr-reel" id="sr-reel" aria-live="polite"></div>
       <button class="sr-interact mono" id="sr-interact" type="button">Click to interact</button>
@@ -125,7 +125,8 @@
       <p class="sr-badge" id="hud-badge"></p>
       <p class="sr-desc" id="hud-desc"></p>
       <div class="sr-cta">
-        <a class="btn primary" id="hud-live" target="_blank" rel="noopener">Open live ↗</a>
+        <a class="btn primary" id="hud-room">Enter the room — full screen →</a>
+        <a class="btn" id="hud-live" target="_blank" rel="noopener">Open live ↗</a>
         <a class="btn" id="hud-src" target="_blank" rel="noopener">Source code ↗</a>
       </div>
     </div>
@@ -410,14 +411,10 @@
       <span class="chap-tag mono">Chapter VI · Toolbox</span>
     </header>
     <h2 class="chap-title" data-reveal>What I build <em>with</em></h2>
-    <div class="tools" data-stagger>
-      <div class="tool-group"><h3 class="mono">AI &amp; ML</h3><div class="chips big"><i>Pandas</i><i>NumPy</i><i>Scikit-learn</i><i>TensorFlow (basics)</i><i>Hugging Face</i><i>NLP</i><i>LSTM</i><i>Computer Vision</i><i>Gemini API</i></div></div>
-      <div class="tool-group"><h3 class="mono">Languages</h3><div class="chips big"><i>Python</i><i>SQL</i><i>Java</i></div></div>
-      <div class="tool-group"><h3 class="mono">Data &amp; Viz</h3><div class="chips big"><i>Power BI</i><i>Tableau</i><i>Seaborn</i><i>Matplotlib</i><i>ETL pipelines</i></div></div>
-      <div class="tool-group"><h3 class="mono">Databases</h3><div class="chips big"><i>MySQL</i><i>SQLite</i><i>SQL Server</i><i>Firebase</i><i>MongoDB (basic)</i></div></div>
-      <div class="tool-group"><h3 class="mono">Tools &amp; cloud</h3><div class="chips big"><i>Git &amp; GitHub</i><i>Android Studio</i><i>VS Code</i><i>Firebase</i><i>AWS (basic)</i><i>Linux (basic)</i></div></div>
-      <div class="tool-group"><h3 class="mono">Certified in</h3><div class="chips big"><i>Data Analytics &amp; Visualization · Accenture</i><i>Intro to Tableau</i><i>Inferential Statistics</i><i>Intro to AWS</i><i>Intro to Firebase</i><i>Google Skill Badges</i></div></div>
-    </div>
+    <p class="story" data-split>Every symbol below is a tool I have actually shipped something with. Tap a skill to see how I used it and jump straight into the project room.</p>
+    <div class="sk-filters" id="sk-filters" role="toolbar" aria-label="Filter skills"></div>
+    <div class="sk-grid" id="sk-grid"></div>
+    <p class="certs mono">Certified: Data Analytics &amp; Visualization (Accenture) · Intro to Tableau · Inferential Statistics · Intro to AWS · Intro to Firebase · Google Skill Badges</p>
   </div>
 </section>
 
@@ -484,7 +481,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="data.js"></script>
 <script src="main.js"></script>
+<script src="skills.js"></script>
 <script src="showroom.js"></script>
 </body>
 </html>

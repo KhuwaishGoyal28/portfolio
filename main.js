@@ -83,16 +83,44 @@
     }
     scene.add(stage);
 
-    // wireframe shapes along the scroll path
-    const geos = [() => new THREE.IcosahedronGeometry(1.2, 0), () => new THREE.TorusKnotGeometry(.9, .28, 90, 12), () => new THREE.OctahedronGeometry(1.3), () => new THREE.TorusGeometry(1.2, .08, 8, 48), () => new THREE.DodecahedronGeometry(1.1)];
+    // floating tech symbols along the scroll path
     const floaters = [];
-    for (let i = 0; i < 16; i++) {
-      const col = i % 2 ? 0x5eead4 : 0xffb454;
-      const m = new THREE.Mesh(geos[i % geos.length](), new THREE.MeshBasicMaterial({ color: col, wireframe: true, transparent: true, opacity: .5 }));
-      m.position.set((i % 2 ? 1 : -1) * (3.4 + Math.random() * 3.2), (Math.random() - .5) * 5, -17 - i * 7);
-      m.userData = { s: (Math.random() * .4 + .1) * (i % 2 ? 1 : -1) };
-      scene.add(m); floaters.push(m);
-    }
+    const SK = (window.KG && KG.SKILLS) || {};
+    const keys = Object.keys(SK);
+    const symTex = k => {
+      const c = document.createElement('canvas'); c.width = c.height = 256;
+      const g = c.getContext('2d'), s = SK[k];
+      const tex = new THREE.CanvasTexture(c);
+      const draw = img => {
+        g.clearRect(0, 0, 256, 256);
+        const gr = g.createRadialGradient(128, 128, 20, 128, 128, 128); gr.addColorStop(0, s.color + '55'); gr.addColorStop(1, 'transparent');
+        g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+        g.fillStyle = 'rgba(12,14,22,.85)'; g.strokeStyle = s.color; g.lineWidth = 5;
+        g.beginPath(); g.arc(128, 128, 84, 0, 7); g.fill(); g.stroke();
+        if (img) g.drawImage(img, 78, 78, 100, 100);
+        else { g.fillStyle = s.color; g.font = '700 64px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(s.glyph || s.name[0], 128, 132); }
+        tex.needsUpdate = true;
+      };
+      draw(null);
+      if (s.icon) { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => draw(im); im.src = s.icon; }
+      return tex;
+    };
+    keys.forEach((k, i) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: symTex(k), transparent: true, depthWrite: false, opacity: .9 }));
+      const side = i % 2 ? 1 : -1;
+      sp.position.set(side * (3.2 + Math.random() * 3.4), (Math.random() - .5) * 4.5, -12 - i * (110 / keys.length));
+      sp.scale.setScalar(1.5 + Math.random() * .6);
+      sp.userData = { y: sp.position.y, ph: Math.random() * 6 };
+      scene.add(sp); floaters.push(sp);
+    });
+    // binary code rain
+    const R = 700, rp = new Float32Array(R * 3), rv = new Float32Array(R);
+    for (let i = 0; i < R; i++) { rp[i * 3] = (Math.random() - .5) * 40; rp[i * 3 + 1] = Math.random() * 30 - 10; rp[i * 3 + 2] = 10 - Math.random() * 140; rv[i] = .6 + Math.random() * 1.6; }
+    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+    const bitC = document.createElement('canvas'); bitC.width = bitC.height = 64;
+    const bg = bitC.getContext('2d'); bg.fillStyle = '#5eead4'; bg.font = '700 48px monospace'; bg.textAlign = 'center'; bg.textBaseline = 'middle'; bg.fillText('1', 32, 34);
+    const rain = new THREE.Points(rg, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(bitC), size: .28, transparent: true, opacity: .35, depthWrite: false }));
+    scene.add(rain);
 
     let camZ = 6, roll = 0, lastY = scrollY, running = true;
     const layout = () => {
@@ -126,7 +154,9 @@
         r.position.set(Math.cos(u.a) * u.rad, 1.6 + Math.sin(t * 1.6 + u.a) * .35, Math.sin(u.a) * u.rad);
         r.rotation.x = t + u.a; r.rotation.y = t * .7;
       });
-      floaters.forEach(f => { f.rotation.x += dt * f.userData.s; f.rotation.y += dt * f.userData.s * 1.3; });
+      floaters.forEach(f => { const u = f.userData; f.position.y = u.y + Math.sin(t * .8 + u.ph) * .35; f.material.rotation = Math.sin(t * .5 + u.ph) * .12; });
+      for (let i = 0; i < R; i++) { rp[i * 3 + 1] -= rv[i] * dt * 3; if (rp[i * 3 + 1] < -10) rp[i * 3 + 1] = 20; }
+      rg.attributes.position.needsUpdate = true;
       stars.rotation.z = t * .01;
       renderer.render(scene, cam);
     }
