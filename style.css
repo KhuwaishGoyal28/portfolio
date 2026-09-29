@@ -1,5 +1,5 @@
 :root{
-  --bg:#0a0c12; --bg2:#0f121b; --ink:#ece9e1; --mute:#8b90a0; --line:rgba(236,233,225,.1);
+  --bg:#0a0c12; --bg2:#0f121b; --ink:#ece9e1; --mute:#b4b9c9; --line:rgba(236,233,225,.1);
   --amber:#ffb454; --teal:#5eead4; --card:#12151f;
   --serif:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
   --pad:clamp(20px,5vw,72px);
@@ -75,12 +75,12 @@ em{font-family:var(--serif);font-style:italic;font-weight:400;color:var(--amber)
 .chapter{position:relative;padding:clamp(90px,14vw,190px) 0;z-index:1}
 .chapter.alt{background:rgba(15,18,27,.78);border-block:1px solid var(--line)}
 .chap-head{display:flex;align-items:baseline;gap:18px;margin-bottom:10px}
-.chap-num{font:600 clamp(3.5rem,9vw,7rem)/1 var(--serif);color:transparent;-webkit-text-stroke:1px rgba(255,180,84,.55)}
+.chap-num{font:600 clamp(3.5rem,9vw,7rem)/1 var(--serif);color:transparent;-webkit-text-stroke:1.5px rgba(255,180,84,.9)}
 .chap-tag{color:var(--amber)}
 .chap-title{font:500 clamp(2.3rem,6vw,4.8rem)/1.05 var(--serif);letter-spacing:-.02em;margin-bottom:34px}
 .chap-title.huge{font-size:clamp(2.8rem,8vw,7rem)}
 .story{font:400 clamp(1.5rem,3vw,2.5rem)/1.35 var(--serif);max-width:24em;letter-spacing:-.01em;margin-bottom:56px}
-.story .w{opacity:.16;display:inline-block;white-space:pre}
+.story .w{opacity:.32;display:inline-block;white-space:pre}
 
 /* ch1 facts */
 .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
@@ -312,3 +312,39 @@ a.card:hover{border-color:rgba(255,180,84,.55);box-shadow:0 24px 60px -30px rgba
 .skc .used a{font:600 .74rem var(--mono);padding:4px 10px;border-radius:99px;border:1px solid var(--c);color:var(--ink);background:color-mix(in srgb,var(--c) 12%,transparent);transition:.2s}
 .skc .used a:hover{background:var(--c);color:#0a0c12}
 .certs{margin-top:30px;color:var(--mute);text-transform:none;letter-spacing:.02em;line-height:1.9}
+
+/* ============ CONTRAST PASS ============ */
+/* plain chapters float over the 3D world: give text a readable backing */
+.chapter:not(.alt):not(.finale){background:linear-gradient(rgba(10,12,18,.72),rgba(10,12,18,.82))}
+.chapter.alt,.h-wrap{background:rgba(15,18,27,.9)}
+.finale{background:radial-gradient(ellipse at 50% 100%,rgba(255,180,84,.13),transparent 60%),rgba(10,12,18,.85)}
+.hero-sub,.hero-facts{color:#cfd3df}
+.chips i{color:#d4d8e4;border-color:rgba(236,233,225,.22)}
+.trophy p,.card p,.job ul,.repo p,.fact p,.trail-item p,.skc .how{color:#c3c8d6}
+.repo footer,.lang-legend{color:#aeb3c3}
+.panel{background:rgba(14,17,26,.88)}
+.pills li{color:#d4d8e4;border-color:rgba(236,233,225,.22)}
+.sr-hud{background:rgba(7,8,13,.86)}.sr-desc{color:#c3c8d6}
+.sr-top{color:#c3c8d6;text-shadow:0 1px 6px #000}
+.nav nav a{color:#cfd3df}
+.btn{color:var(--ink)}
+.btn.primary,.btn.primary:hover{color:#1a1205}
+::selection{background:var(--amber);color:#1a1205}
+
+/* ============ SKILL GLOBE ============ */
+.sk-globe{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,1fr);gap:24px;align-items:center;margin:-10px 0 44px;
+  border:1px solid var(--line);border-radius:24px;background:radial-gradient(ellipse at 35% 50%,rgba(94,234,212,.08),transparent 60%),rgba(10,12,18,.6);overflow:hidden}
+.globe-stage{position:relative;min-height:380px;touch-action:pan-y}
+.globe-stage canvas{display:block;width:100%}
+.globe-hint{position:absolute;left:18px;top:16px;color:var(--teal);pointer-events:none}
+.globe-info{margin:20px 22px 20px 0;padding:22px;border-radius:18px;border:1px solid var(--c,var(--line));background:rgba(14,17,26,.92);--c:#3776ab}
+.globe-info.pop{animation:gi .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes gi{from{opacity:0;transform:translateY(14px) rotateX(-20deg)}}
+.gi-top{display:flex;gap:14px;align-items:center}.gi-top h3{font:600 1.35rem var(--serif)}.gi-top small{color:var(--c);font:600 .74rem var(--mono);text-transform:uppercase}
+.gi-bar{height:6px;border-radius:99px;background:var(--line);margin:14px 0}.gi-bar i{display:block;height:100%;border-radius:99px;background:var(--c);animation:gb 1s ease-out}
+@keyframes gb{from{width:0}}
+.globe-info p{color:#c3c8d6;font-size:.95rem}
+.globe-info .used{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.globe-info .used a{font:600 .74rem var(--mono);padding:4px 10px;border-radius:99px;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.globe-info .used a:hover{background:var(--c);color:#0a0c12}
+@media (max-width:860px){.sk-globe{grid-template-columns:1fr}.globe-info{margin:0 14px 14px}}
